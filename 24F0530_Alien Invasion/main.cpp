@@ -12,19 +12,28 @@ char map[ROWS][COLS] = {};
 //General Game Mechanics
 bool gameOver = 0;
 // Ship Coords
-int s_y = LAST_Y-1, s_x = LAST_X/2;
+int ship_y = LAST_Y-1, ship_x = LAST_X/2;
+// Laser
+int laser_count = 0; 
+int laser_x[50] = {};
+int laser_y[50] = {};
 
+// -------------Declaring all functions
+// Game Related
 void processShip(int x, int y);
 void renderMap();
 void buttonPressed(char btn);
+void shootLaser();
+void progressObjects();
+void progressLaser();
 void gameOverFn();
 
 
 
 int main()
-{
-	char key = 0;
-	for (int i = 0; i < ROWS; i++) // ALL THE INITIALS HERE
+{	// ALL THE INITIALS HERE , One Timers
+	char key = 0; // for storing keyboard key
+	for (int i = 0; i < ROWS; i++) 
 	{
 		for (int j = 0; j < COLS; j++)
 		{
@@ -32,11 +41,11 @@ int main()
 		}
 	}
 
-	do { // GAME LOOP
+	do { // -------------------------- GAME LOOP
 		system("CLS");
-		processShip(s_x, s_y);
+		processShip(ship_x, ship_y);
 		renderMap();
-
+		progressObjects();
 
 
 
@@ -51,7 +60,7 @@ int main()
 		Sleep(100); // Game Overall Speed
 	} while (gameOver==0);
 
-	if (gameOver == 1)
+	if (gameOver)
 	{
 		gameOverFn();
 	}
@@ -94,47 +103,99 @@ void renderMap() { // To print everything
 void buttonPressed(char btn) { // To process the pressed key
 	switch (btn)
 	{
-	case 'a': // Left
+	case 'a': // Ship Left
 	case 'A':
-		if ((s_x-1) != 0)  // if Left Wing doesn't touch Boundary
+		if ((ship_x-1) != 0)  // if Left Wing doesn't touch Boundary
 		{
-			map[s_y][s_x+1] = ' ';
-			s_x--;
+			map[ship_y][ship_x+1] = ' ';
+			ship_x--;
 		}
 		break;
 
-	case 'd': // Right 
+	case 'd': // Ship Right 
 	case 'D':
-		if ((s_x+1) != LAST_X) // if Right Wing doesn't touch Boundary
+		if ((ship_x+1) != LAST_X) // if Right Wing doesn't touch Boundary
 		{
-			map[s_y][s_x-1] = ' ';
-			s_x++;
+			map[ship_y][ship_x-1] = ' ';
+			ship_x++;
 		}
 		break;
 
-	case 'w': // Up 
+	case 'w': // Ship Up 
 	case 'W':
-		if ((s_y + 1) != 40) // if Ship doesn't touch Row 30
+		if ((ship_y + 1) != 40) // if Ship doesn't touch Row 30
 		{
-			map[s_y][s_x-1] = ' ';
-			map[s_y][s_x] = ' ';
-			map[s_y][s_x+1] = ' ';
-			s_y--;
+			map[ship_y][ship_x-1] = ' ';
+			map[ship_y][ship_x] = ' ';
+			map[ship_y][ship_x+1] = ' ';
+			ship_y--;
 		}
 		break;
 
-	case 's': // Down
+	case 's': // Ship Down
 	case 'S':
-		if ((s_y - 1) != LAST_Y-1) // if Shit doesn't touch Bottom Boundary
+		if ((ship_y - 1) != LAST_Y-1) // if Shit doesn't touch Bottom Boundary
 		{
-			map[s_y][s_x - 1] = ' ';
-			map[s_y][s_x] = ' ';
-			map[s_y][s_x + 1] = ' ';
-			s_y++;
+			map[ship_y][ship_x - 1] = ' ';
+			map[ship_y][ship_x] = ' ';
+			map[ship_y][ship_x + 1] = ' ';
+			ship_y++;
 		}
+		break;
+
+	case 'b': // Shoot Laser
+	case 'B':
+		shootLaser();
 		break;
 	}
 
+}
+
+void shootLaser() { // Generates a laser
+	laser_x[laser_count] = ship_x;
+	laser_y[laser_count] = ship_y - 1;
+	map[ship_y - 1][ship_x] = '|';
+	laser_count++;
+}
+
+void progressObjects() { // Progression for multiple objects
+	progressLaser();
+}
+
+
+void progressLaser() { // Movement of Laser(s)
+	for (int i = 0; i < laser_count; i++)
+	{
+		if (laser_y[i] != 0) // if laser not hitting top boundary, move them upward
+		{
+			map[laser_y[i]][laser_x[i]] = ' ';
+			laser_y[i]--;
+			map[laser_y[i]][laser_x[i]] = '|';
+		}
+		else if (laser_y[i]==0) // If laser hit boundary, 
+		{
+			map[laser_y[i]][laser_x[i]] = ' '; // remove that laser
+			for (int j = 0; j < laser_count; j++) // Re-arrange the laser arrays
+			{
+				for (int k = 0; k < laser_count; k++)
+				{
+					if (laser_y[k] == 0)
+					{
+						int temp = 0;
+						temp = laser_y[k];
+						laser_y[k] = laser_y[k+1];
+						laser_y[k+1] = temp;
+
+						temp = 0; laser_x[k] = 0;
+						temp = laser_x[k];
+						laser_x[k] = laser_x[k + 1];
+						laser_x[k + 1] = temp;
+					}
+				}
+			}
+			laser_count--;
+		}
+	}
 }
 
 void gameOverFn() { // Prints Game Over on screen
