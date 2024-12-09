@@ -1,5 +1,5 @@
 #include<iostream>
-#include<windows.h> // for Sleep()
+#include<windows.h> // for Sleep() and gotoxy
 #include<conio.h> // for _getch() and _kbhit()
 
 
@@ -20,16 +20,18 @@ bool gameOver = 0;
 int ship_y = LAST_Y-1, ship_x = LAST_X/2;
 // Laser Count and Coords
 int laser_count = 0; 
-int laser_x[50] = {};
-int laser_y[50] = {};
+int laser_x[100] = {};
+int laser_y[100] = {};
 // Asteroids
 int ast_count = 0;
-int ast_x[50] = {};
-int ast_y[50] = {};
+int ast_x[100] = {};
+int ast_y[100] = {};
 // Storing keyboard hit key
 char key = 0;
 
 // -------------Declaring all functions
+// Coding related
+void gotoxy(int x, int y);
 // Game Related
 void cleanBoundary();
 void processShip(int x, int y);
@@ -50,6 +52,7 @@ void gameOverFn();
 
 
 
+
 int main()
 {	// ALL THE INITIALS HERE aka One Timers
 	
@@ -59,13 +62,14 @@ int main()
 
 	do { // -------------------------- GAME LOOP
 		frame++;
-		system("CLS");
-		cleanBoundary();
+		//system("CLS");
+		
 		processShip(ship_x, ship_y);
 		renderMap();
 		if (frame % 2 == 0) // to slow down the other things
 		{
 			progressObjects();
+			cleanBoundary();
 		}
 
 
@@ -119,19 +123,16 @@ void renderMap() { // To print everything
 
 	for (int i = 0; i < ROWS; i++) // Inner Game
 	{
+		gotoxy(0,i+1);
 		cout << "|";
 		for (int j = 0; j < COLS; j++)
 		{
 			cout << map[i][j];
 			
 		}
-		cout << "|" << endl;
+		cout << "|";
 	}
-	for (int i = 0; i < COLS + 2; i++) // Bottom Boundary
-	{
-		cout << "=";
-	}
-	
+	gotoxy(0, 51);
 }
 
 void keyListen() {
@@ -311,4 +312,15 @@ void progressAsteroid()
 void gameOverFn() { // Prints Game Over on screen
 	cout << endl;
 	cout << "Game Over" << endl;
+}
+
+
+
+// Coding Related
+void gotoxy(int x, int y) // to get rid of System("CLS") and, get better rendering
+{
+	COORD coord;
+	coord.X = x; // Column
+	coord.Y = y; // Row
+	SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), coord);
 }
