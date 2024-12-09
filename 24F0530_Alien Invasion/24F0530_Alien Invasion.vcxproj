@@ -127,6 +127,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="101_Snippet_testing.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="SnippetTesting.cpp" />
   </ItemGroup>
