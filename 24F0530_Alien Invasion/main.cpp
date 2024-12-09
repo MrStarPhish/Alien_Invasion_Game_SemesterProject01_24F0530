@@ -5,8 +5,10 @@
 
 using namespace std;
 
+// ------------All Global Variables
 
-unsigned long int frame = 0;
+// for keeping track of game-frames
+unsigned long int frame = 0; 
 // Map Related
 const int ROWS = 50;
 const int COLS = 30;
@@ -20,11 +22,16 @@ int ship_y = LAST_Y-1, ship_x = LAST_X/2;
 int laser_count = 0; 
 int laser_x[50] = {};
 int laser_y[50] = {};
+// Asteroids
+int ast_count = 0;
+int ast_x[50] = {};
+int ast_y[50] = {};
 // Storing keyboard hit key
 char key = 0;
 
 // -------------Declaring all functions
 // Game Related
+void cleanBoundary();
 void processShip(int x, int y);
 void initializeMap();
 void renderMap();
@@ -35,8 +42,10 @@ void moveShipRight();
 void moveShipUp();
 void moveShipDown();
 void shootLaser();
+void generateAsteroid();
 void progressObjects();
 void progressLaser();
+void progressAsteroid();
 void gameOverFn();
 
 
@@ -51,13 +60,14 @@ int main()
 	do { // -------------------------- GAME LOOP
 		frame++;
 		system("CLS");
+		cleanBoundary();
 		processShip(ship_x, ship_y);
 		renderMap();
 		if (frame % 2 == 0) // to slow down the other things
 		{
 			progressObjects();
 		}
-		
+
 
 
 
@@ -74,6 +84,14 @@ int main()
 
 	system("pause");
 	return 0;
+}
+
+void cleanBoundary()
+{
+	for (int i = 0; i < 30; i++)
+	{
+		map[49][i] = ' ';
+	}
 }
 
 void processShip(int x, int y) { // To store the location of ship
@@ -151,7 +169,13 @@ void buttonPressed(char btn) { // To process the pressed key
 	case 'B':
 		shootLaser();
 		break;
+	case 'p':
+	case 'P':
+		generateAsteroid();
+		break;
 	}
+	
+
 
 }
 
@@ -198,9 +222,19 @@ void shootLaser() { // Generates a laser
 	map[ship_y - 1][ship_x] = '|';
 	laser_count++;
 }
+void generateAsteroid()
+{
+	int random = rand() % 30;
+	ast_x[ast_count] = random;
+	ast_y[ast_count] = 0;
+	map[ast_y[ast_count]][ast_x[ast_count]] = 'E';
+	ast_count++;
+}
+
 // Progression of Objects
 void progressObjects() { // Progression for multiple objects
 	progressLaser();
+	progressAsteroid();
 }
 
 
@@ -235,6 +269,41 @@ void progressLaser() { // Movement of Laser(s)
 				}
 			}
 			laser_count--;
+		}
+	}
+}
+void progressAsteroid()
+{
+	for (int i = 0; i < ast_count; i++)
+	{
+		if (ast_y[i] != 49) // if Asteroid not hitting bottom boundary
+		{
+			map[ast_y[i]][ast_x[i]] = ' ';
+			ast_y[i]++;
+			map[ast_y[i]][ast_x[i]] = 'E';
+		}
+		else if (ast_y[i] == 49) // if it is hitting bottom boundary
+		{
+			map[ast_y[i]][ast_x[i]] = ' '; // remove that asteroid
+			for (int j = 0; j < ast_count; j++) // Re-arrange the asteroid arrays
+			{
+				for (int k = 0; k < ast_count; k++)
+				{
+					if (ast_y[k] == 49)
+					{
+						int temp = 0;
+						temp = ast_y[k];
+						ast_y[k] = ast_y[k + 1];
+						ast_y[k + 1] = temp;
+
+						temp = 0; ast_x[k] = 0;
+						temp = ast_x[k];
+						ast_x[k] = ast_x[k + 1];
+						ast_x[k + 1] = temp;
+					}
+				}
+			}
+			ast_count--;
 		}
 	}
 }
