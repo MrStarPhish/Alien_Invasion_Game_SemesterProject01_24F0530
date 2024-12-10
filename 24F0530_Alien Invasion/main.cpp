@@ -26,6 +26,11 @@ int laser_y[100] = {};
 int ast_count = 0;
 int ast_x[100] = {};
 int ast_y[100] = {};
+// Explosion 
+int exp_count = 0;
+int exp_x[100] = {};
+int exp_y[100] = {};
+int exp_state[100] = {};
 // Storing keyboard hit key
 char key = 0;
 
@@ -43,10 +48,15 @@ void moveShipLeft();
 void moveShipRight();
 void moveShipUp();
 void moveShipDown();
+// LASER
 void shootLaser();
-void generateAsteroid();
-void progressObjects();
 void progressLaser();
+void neutralizeLaser(int i);
+void sortLaser();
+// ASTEROID
+void generateAsteroid();
+// PROGRESSION
+void progressObjects();
 void progressAsteroid();
 void gameOverFn();
 
@@ -231,6 +241,13 @@ void generateAsteroid()
 	map[ast_y[ast_count]][ast_x[ast_count]] = 'E';
 	ast_count++;
 }
+void generateExplosion(int x, int y) // <--------- Checkpoint
+{
+	exp_x[exp_count] = x;
+	exp_y[exp_count] = y;
+	exp_state[exp_count] = 2;
+	exp_count++;
+}
 
 // Progression of Objects
 void progressObjects() { // Progression for multiple objects
@@ -250,26 +267,55 @@ void progressLaser() { // Movement of Laser(s)
 		}
 		else if (laser_y[i]==0) // If laser hit boundary, 
 		{
-			map[laser_y[i]][laser_x[i]] = ' '; // remove that laser
-			for (int j = 0; j < laser_count; j++) // Re-arrange the laser arrays
-			{
-				for (int k = 0; k < laser_count; k++)
-				{
-					if (laser_y[k] == 0)
-					{
-						int temp = 0;
-						temp = laser_y[k];
-						laser_y[k] = laser_y[k+1];
-						laser_y[k+1] = temp;
+			//map[laser_y[i]][laser_x[i]] = ' '; // remove that laser
+			//for (int j = 0; j < laser_count; j++) // Re-arrange the laser arrays
+			//{
+			//	for (int k = 0; k < laser_count; k++)
+			//	{
+			//		if (laser_y[k] == 0) // rearranges if this condiion follows
+			//		{
+			//			int temp = 0;
+			//			temp = laser_y[k];
+			//			laser_y[k] = laser_y[k+1];
+			//			laser_y[k+1] = temp;
 
-						temp = 0; laser_x[k] = 0;
-						temp = laser_x[k];
-						laser_x[k] = laser_x[k + 1];
-						laser_x[k + 1] = temp;
-					}
-				}
+			//			temp = 0; laser_x[k] = 0;
+			//			temp = laser_x[k];
+			//			laser_x[k] = laser_x[k + 1];
+			//			laser_x[k + 1] = temp;
+			//		}
+			//	}
+			//}
+			//laser_count--;
+			neutralizeLaser(i);
+		}
+	}
+}
+void neutralizeLaser(int i)
+{
+	laser_y[i] = 0;
+	map[laser_y[i]][laser_x[i]] = ' '; // remove that laser
+	sortLaser();
+	laser_count--;
+}
+void sortLaser()
+{
+	for (int j = 0; j < laser_count; j++) // Re-arrange the laser arrays
+	{
+		for (int k = 0; k < laser_count; k++)
+		{
+			if (laser_y[k] == 0) // rearranges if this condiion follows
+			{
+				int temp = 0;
+				temp = laser_y[k];
+				laser_y[k] = laser_y[k + 1];
+				laser_y[k + 1] = temp;
+
+				temp = 0; laser_x[k] = 0;
+				temp = laser_x[k];
+				laser_x[k] = laser_x[k + 1];
+				laser_x[k + 1] = temp;
 			}
-			laser_count--;
 		}
 	}
 }
