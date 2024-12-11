@@ -67,11 +67,12 @@ bool laserHitAst(int laser_n);
 int hitAstNum(int laser_n);
 // EXPLOSION RELATED
 void generateExplosion(int x, int y);
+void progressExplosion();
 // PROGRESSION
 void progressObjects();
 void gameOverFn();
 
-//uhh fillers
+
 
 
 
@@ -104,6 +105,7 @@ int main()
 
 
 		progressLaser();
+		progressExplosion();
 		cleanBoundary();
 		keyListen();
 		Sleep(10); // Game Overall Speed
@@ -119,21 +121,16 @@ int main()
 }
 
 // Render Related
-void cleanBoundary()
-{
-	for (int i = 0; i < 30; i++)
-	{
-		map[49][i] = ' ';
-	}
-}
 
-void processShip(int x, int y) { // To store the location of ship
+void processShip(int x, int y)
+{ // To store the location of ship
 	map[y][x-1] = '<';
 	map[y][x] = '^';
 	map[y][x+1] = '>';
 }
 
 void initializeMap() {
+	// Initializes the whole map array
 	for (int i = 0; i < ROWS; i++)
 	{
 		for (int j = 0; j < COLS; j++)
@@ -143,7 +140,8 @@ void initializeMap() {
 	}
 }
 
-void renderMap() { // To print everything
+void renderMap() 
+{ // To print everything
 	gotoxy(0, 0);
 	for (int i = 0; i < COLS + 2; i++) // Top Boundary
 	{
@@ -168,9 +166,17 @@ void renderMap() { // To print everything
 		cout << "=";
 	}
 }
+void cleanBoundary()
+{
+	for (int i = 0; i < 30; i++)
+	{
+		map[49][i] = ' ';
+	}
+}
 
 // Button Listener
-void keyListen() {
+void keyListen()
+{
 	if (_kbhit()) // if keyboard key pressed
 	{
 		key = _getch();
@@ -178,7 +184,8 @@ void keyListen() {
 	}
 }
 
-void buttonPressed(char btn) { // To process the pressed key
+void buttonPressed(char btn) 
+{ // To process the pressed key
 	switch (btn)
 	{
 	case 'a': // Ship Left
@@ -252,14 +259,15 @@ void moveShipDown()
 		ship_y++;
 	}
 }
-void shootLaser() { // Generates a laser
+void shootLaser() 
+{ // Generates a laser
 	laser_x[laser_count] = ship_x;
 	laser_y[laser_count] = ship_y - 1;
 	map[ship_y - 1][ship_x] = '|';
 	laser_count++;
 }
 void generateAsteroid()
-{
+{ // To create an asteroid
 	int random = rand() % 30;
 	ast_x[ast_count] = random;
 	ast_y[ast_count] = 0;
@@ -270,7 +278,8 @@ void generateExplosion(int x, int y)
 {
 	exp_x[exp_count] = x;
 	exp_y[exp_count] = y;
-	exp_state[exp_count] = 2;
+	exp_state[exp_count] = 3;
+	map[y][x] = 'O';
 	exp_count++;
 }
 
@@ -281,19 +290,20 @@ void progressObjects() { // Progression for multiple objects
 }
 
 
-void progressLaser() { // Movement of Laser(s)
+void progressLaser()
+{ // Movement of Laser(s)
 	for (int i = 0; i < laser_count; i++) // i'th laser
 	{
 		if (laserHitAst(i))
 		{
-			int temp = hitAstNum(i);
+			int astNum = hitAstNum(i);
 			debugMsg(1,FRAME);
 			map[laser_y[i]][laser_x[i]] = ' ';
 			map[ast_y[i]][ast_x[i]] = ' ';
 			map[ast_y[i]+1][ast_x[i]] = ' ';
-			neutralizeAsteroid(temp); // <- CHeckpoint
+			neutralizeAsteroid(astNum); // <- CHeckpoint
+			generateExplosion(laser_x[i],laser_y[i]);
 			neutralizeLaser(i);
-			//neutralizeAsteroid(i);
 		}
 		else if (laser_y[i] != 0) // if laser not hitting top boundary, move them upward
 		{
@@ -309,7 +319,7 @@ void progressLaser() { // Movement of Laser(s)
 }
 
 bool laserHitAst(int laser_n)
-{
+{ // To check whether Laser is Hitting any Asteroid or not
 	for (int j = 0; j < ast_count; j++)
 	{
 		if (laser_x[laser_n] == ast_x[j])
@@ -322,17 +332,14 @@ bool laserHitAst(int laser_n)
 	}
 	return 0;
 }
-
-int hitAstNum(int laser_n)
-{
+int hitAstNum(int laser_n)   
+{ // To know, which Nth Asteroid is getting hit with laser
 	for (int j = 0; j < ast_count; j++)
 	{
 		if (laser_x[laser_n] == ast_x[j])
 		{
 			if ((laser_y[laser_n] == ast_y[j]) || (laser_y[laser_n] - 1 == ast_y[j]))
 			{
-				//printStr("Asteroid Hit",FRAME, 58);
-
 				gotoxy(0, 58); cout << j;
 				return j;
 			}
@@ -340,15 +347,16 @@ int hitAstNum(int laser_n)
 	}
 }
 
+
 void neutralizeLaser(int i)
-{
+{ // Remove a specific laser and perform related operations
 	laser_y[i] = 0;
 	map[laser_y[i]][laser_x[i]] = ' '; // remove that laser
 	sortLaser();
 	laser_count--;
 }
 void sortLaser()
-{
+{  // Sort the Array of Laser Coordinates, so the Neutralized Lasers get aside
 	for (int j = 0; j < laser_count; j++) // Re-arrange the laser arrays
 	{
 		for (int k = 0; k < laser_count; k++)
@@ -369,7 +377,7 @@ void sortLaser()
 	}
 }
 void progressAsteroid()
-{
+{ // Movement of Asteroid
 	for (int i = 0; i < ast_count; i++)
 	{
 		if (ast_y[i] != 49) // if Asteroid not hitting bottom boundary
@@ -385,15 +393,42 @@ void progressAsteroid()
 	}
 }
 void neutralizeAsteroid(int i)
-{
+{ // Removal of Asteroid and other related functions
 	map[ast_y[i]][ast_x[i]] = ' ';
 	ast_y[i] = 49;
 	sortAsteroid();
 	ast_count--;
 }
+void progressExplosion()
+{ // For creation of Explosion Animation :>
+	for (int i = 0; i < exp_count; i++)
+	{
+		if (exp_state[i] == 3) // first stage of explosion
+		{
+			map[exp_y[i]][exp_x[i]] = '@';
+		}
+		else if (exp_state[i] == 2) // first stage of explosion
+		{
+			map[exp_y[i]][exp_x[i]] = 'O';
+		}
+		else if (exp_state[i] == 1) // second stage of explosion
+		{
+			map[exp_y[i]][exp_x[i]] = 'o';
+		}
+		else if (exp_state[i] == 0) // removal/final stage of explosion
+		{
+			map[exp_y[i]][exp_x[i]] = ' ';
+		}
+	}
+	for (int i = 0; i < exp_count; i++)
+	{
+		if (exp_state[i] > 0)
+			exp_state[i]--;
+	}
+}
 
 void sortAsteroid()
-{
+{ // To sort the Array of Asteroids Coordinates
 	int count = 0; 
 	for (int i = 0; i < ast_count; i++) // Removing all indexes with value 49
 	{
