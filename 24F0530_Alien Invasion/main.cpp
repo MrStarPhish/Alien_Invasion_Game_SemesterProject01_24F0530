@@ -8,7 +8,7 @@ using namespace std;
 // ------------All Global Variables
 
 // for keeping track of game-frames
-unsigned long int frame = 0; 
+unsigned long int FRAME = 0; 
 // Map Related
 const int ROWS = 50;
 const int COLS = 30;
@@ -37,6 +37,10 @@ char key = 0;
 // -------------Declaring all functions
 // Coding related
 void gotoxy(int x, int y);
+void debugMsg(int code, int frame);
+void printArr(int arr[], int size, int row);
+void printStr(string line, int i_frame, int row);
+void clearRow(int row);
 // Game Related
 void cleanBoundary();
 void processShip(int x, int y);
@@ -55,10 +59,20 @@ void neutralizeLaser(int i);
 void sortLaser();
 // ASTEROID
 void generateAsteroid();
+void progressAsteroid();
+void neutralizeAsteroid(int i);
+void sortAsteroid();
+// LASER INTERACTION
+bool laserHitAst(int laser_n);
+int hitAstNum(int laser_n);
+// EXPLOSION RELATED
+void generateExplosion(int x, int y);
 // PROGRESSION
 void progressObjects();
-void progressAsteroid();
 void gameOverFn();
+
+//uhh fillers
+
 
 
 
@@ -71,22 +85,26 @@ int main()
 
 
 	do { // -------------------------- GAME LOOP
-		frame++;
-		//system("CLS");
-		
+		// keeping track of game's progression
+		FRAME++;
+		// Ship and Render
 		processShip(ship_x, ship_y);
 		renderMap();
-		if (frame % 2 == 0) // to slow down the other things
+		// Print Below-Game stuff here
+		clearRow(56);
+		clearRow(57);
+		printArr(laser_y, laser_count, 56);
+		printArr(ast_y, ast_count, 57);
+		if (FRAME % 5 == 0)  // to slow down the other things
 		{
-			progressObjects();
-			cleanBoundary();
+			progressAsteroid();
+			 // to remove any buggy display at bottom
 		}
 
 
 
-
-		
-		
+		progressLaser();
+		cleanBoundary();
 		keyListen();
 		Sleep(10); // Game Overall Speed
 	} while (gameOver==0);
@@ -100,6 +118,7 @@ int main()
 	return 0;
 }
 
+// Render Related
 void cleanBoundary()
 {
 	for (int i = 0; i < 30; i++)
@@ -125,6 +144,7 @@ void initializeMap() {
 }
 
 void renderMap() { // To print everything
+	gotoxy(0, 0);
 	for (int i = 0; i < COLS + 2; i++) // Top Boundary
 	{
 		cout << "=";
@@ -143,8 +163,13 @@ void renderMap() { // To print everything
 		cout << "|";
 	}
 	gotoxy(0, 51);
+	for (int i = 0; i < COLS + 2; i++) // Top Boundary
+	{
+		cout << "=";
+	}
 }
 
+// Button Listener
 void keyListen() {
 	if (_kbhit()) // if keyboard key pressed
 	{
@@ -241,7 +266,7 @@ void generateAsteroid()
 	map[ast_y[ast_count]][ast_x[ast_count]] = 'E';
 	ast_count++;
 }
-void generateExplosion(int x, int y) // <--------- Checkpoint
+void generateExplosion(int x, int y)
 {
 	exp_x[exp_count] = x;
 	exp_y[exp_count] = y;
@@ -257,9 +282,20 @@ void progressObjects() { // Progression for multiple objects
 
 
 void progressLaser() { // Movement of Laser(s)
-	for (int i = 0; i < laser_count; i++)
+	for (int i = 0; i < laser_count; i++) // i'th laser
 	{
-		if (laser_y[i] != 0) // if laser not hitting top boundary, move them upward
+		if (laserHitAst(i))
+		{
+			int temp = hitAstNum(i);
+			debugMsg(1,FRAME);
+			map[laser_y[i]][laser_x[i]] = ' ';
+			map[ast_y[i]][ast_x[i]] = ' ';
+			map[ast_y[i]+1][ast_x[i]] = ' ';
+			neutralizeAsteroid(temp); // <- CHeckpoint
+			neutralizeLaser(i);
+			//neutralizeAsteroid(i);
+		}
+		else if (laser_y[i] != 0) // if laser not hitting top boundary, move them upward
 		{
 			map[laser_y[i]][laser_x[i]] = ' ';
 			laser_y[i]--;
@@ -267,30 +303,43 @@ void progressLaser() { // Movement of Laser(s)
 		}
 		else if (laser_y[i]==0) // If laser hit boundary, 
 		{
-			//map[laser_y[i]][laser_x[i]] = ' '; // remove that laser
-			//for (int j = 0; j < laser_count; j++) // Re-arrange the laser arrays
-			//{
-			//	for (int k = 0; k < laser_count; k++)
-			//	{
-			//		if (laser_y[k] == 0) // rearranges if this condiion follows
-			//		{
-			//			int temp = 0;
-			//			temp = laser_y[k];
-			//			laser_y[k] = laser_y[k+1];
-			//			laser_y[k+1] = temp;
-
-			//			temp = 0; laser_x[k] = 0;
-			//			temp = laser_x[k];
-			//			laser_x[k] = laser_x[k + 1];
-			//			laser_x[k + 1] = temp;
-			//		}
-			//	}
-			//}
-			//laser_count--;
 			neutralizeLaser(i);
 		}
 	}
 }
+
+bool laserHitAst(int laser_n)
+{
+	for (int j = 0; j < ast_count; j++)
+	{
+		if (laser_x[laser_n] == ast_x[j])
+		{
+			if ( (laser_y[laser_n] == ast_y[j]) || (laser_y[laser_n]-1 == ast_y[j]))
+			{
+				return 1;
+			}
+		}
+	}
+	return 0;
+}
+
+int hitAstNum(int laser_n)
+{
+	for (int j = 0; j < ast_count; j++)
+	{
+		if (laser_x[laser_n] == ast_x[j])
+		{
+			if ((laser_y[laser_n] == ast_y[j]) || (laser_y[laser_n] - 1 == ast_y[j]))
+			{
+				//printStr("Asteroid Hit",FRAME, 58);
+
+				gotoxy(0, 58); cout << j;
+				return j;
+			}
+		}
+	}
+}
+
 void neutralizeLaser(int i)
 {
 	laser_y[i] = 0;
@@ -331,27 +380,32 @@ void progressAsteroid()
 		}
 		else if (ast_y[i] == 49) // if it is hitting bottom boundary
 		{
-			map[ast_y[i]][ast_x[i]] = ' '; // remove that asteroid
-			for (int j = 0; j < ast_count; j++) // Re-arrange the asteroid arrays
-			{
-				for (int k = 0; k < ast_count; k++)
-				{
-					if (ast_y[k] == 49)
-					{
-						int temp = 0;
-						temp = ast_y[k];
-						ast_y[k] = ast_y[k + 1];
-						ast_y[k + 1] = temp;
-
-						temp = 0; ast_x[k] = 0;
-						temp = ast_x[k];
-						ast_x[k] = ast_x[k + 1];
-						ast_x[k + 1] = temp;
-					}
-				}
-			}
-			ast_count--;
+			neutralizeAsteroid(i);
 		}
+	}
+}
+void neutralizeAsteroid(int i)
+{
+	map[ast_y[i]][ast_x[i]] = ' ';
+	ast_y[i] = 49;
+	sortAsteroid();
+	ast_count--;
+}
+
+void sortAsteroid()
+{
+	int count = 0; 
+	for (int i = 0; i < ast_count; i++) // Removing all indexes with value 49
+	{
+		if (ast_y[i] != 49) { 
+			ast_y[count] = ast_y[i];
+			ast_x[count] = ast_x[i];
+			count++;
+		}
+	}
+	for (int i = count; i < ast_count; i++) {
+		ast_y[i] = 0;
+		ast_x[i] = 0; 
 	}
 }
 // General Game
@@ -362,11 +416,63 @@ void gameOverFn() { // Prints Game Over on screen
 
 
 
-// Coding Related
+// Coding and Debugging Related
 void gotoxy(int x, int y) // to get rid of System("CLS") and, get better rendering
 {
 	COORD coord;
 	coord.X = x; // Column
 	coord.Y = y; // Row
 	SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), coord);
+}
+
+void debugMsg(int code, int i_frame)
+{
+	if (code == 1)
+	{
+		gotoxy(0,55);
+		cout << "Asteroid Hit : " << i_frame;
+	}
+}
+
+void printArr(int arr[],int size, int row)
+{
+	gotoxy(0, row);
+	for (int i = 0; i < size; i++)
+	{
+		cout << arr[i] << " ";
+	}
+}
+void clearRow(int row)
+{
+	gotoxy(0, row);
+	for (int i = 0; i < 30; i++)
+	{
+		cout << " ";
+	}
+}
+void printStr(string line, int i_frame, int row)
+{
+	static int ity = i_frame+10;
+	
+	gotoxy(0, row);
+	cout << line;
+	//if (ity == FRAME)
+		//clearRow(58);
+	//static int activationFrame = -1; // Track when the text was printed
+	//static int asteroidHitCount = 0;
+
+	//if (activationFrame == -1) {
+	//	activationFrame = i_frame; // Initialize activation frame only on first call
+	//}
+
+	//// Print the string at the specified position
+	//gotoxy(0, row);
+	//cout << line << " : " << ++asteroidHitCount;
+
+	//// Check if the time to clear has arrived
+	//if (FRAME >= activationFrame + 20) 
+	//{
+	//	clearRow(row); // Clear the specified row
+	//	activationFrame = -1; // Reset activation frame for the next activation
+	//}
 }

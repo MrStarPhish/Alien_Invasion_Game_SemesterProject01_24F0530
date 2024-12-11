@@ -42,3 +42,25 @@
 //	return 0;
 //}
 //
+
+//void sortAsteroid()
+//{
+	//for (int j = 0; j < ast_count; j++) // Re-arrange the asteroid arrays
+	//{
+	//	for (int k = 0; k < ast_count; k++)
+	//	{
+	//		if (ast_y[k] == 49)
+	//		{
+	//			int temp = 0;
+	//			temp = ast_y[k];
+	//			ast_y[k] = ast_y[k + 1];
+	//			ast_y[k + 1] = temp;
+
+	//			temp = 0; ast_x[k] = 0;
+	//			temp = ast_x[k];
+	//			ast_x[k] = ast_x[k + 1];
+	//			ast_x[k + 1] = temp;
+	//		}
+	//	}
+	//}
+//}
