@@ -76,6 +76,9 @@ void progressExplosion();
 void sortExplosion();
 // ENEMY SHIP RELATED
 void generateEnemy(int y);
+void progressEnemy();
+void clearEnemyCurrentLocation(int num);
+void updateEnemyLocation(int num);
 // PROGRESSION
 void progressObjects();
 void gameOverFn();
@@ -118,6 +121,7 @@ int main()
 
 		progressLaser();
 		progressExplosion();
+		progressEnemy();
 		/*exp_count--;
 		cleanBoundary();*/
 		keyListen();
@@ -578,3 +582,45 @@ void printStr(string line, int i_frame, int row)
 }
 
 // Progress Note:  To make: Enemy Progress
+void progressEnemy()
+{
+	for (int i = 0; i < enemy_count; i++)
+	{
+		if(enemy_direction[i]==2)
+		if ((enemy_x[i] - 1) != 0/* && enemy_direction[i]==2*/) // if Left Wing of Enemy is NOT at column = 0 / very left , then move ship left
+		{
+			clearEnemyCurrentLocation(i);
+			enemy_x[i]--;
+			updateEnemyLocation(i);
+			if (enemy_x[i] == 1) // switching direction
+				enemy_direction[i] = 1;
+		}
+		if (enemy_direction[i] == 1)
+		{
+		 if ((enemy_x[i] + 1) != LAST_X /*&& enemy_direction[i] == 2*/) // if Right Wing of Enemy is NOT at column = 29 / very right , then move ship right
+		{
+			clearEnemyCurrentLocation(i);
+			enemy_x[i]++;
+			updateEnemyLocation(i);
+			if (enemy_x[i] == LAST_X-1) // switching direction
+				enemy_direction[i] = 2;
+		}
+
+		}
+	}
+}
+
+void clearEnemyCurrentLocation(int num)
+{
+	// To Clear the current position of the enemy ship
+	map[enemy_y[num]][enemy_x[num] - 1] = ' ';
+	map[enemy_y[num]][enemy_x[num]] = ' ';
+	map[enemy_y[num]][enemy_x[num] + 1] = ' ';
+}
+void updateEnemyLocation(int num)
+{
+	// To reprint the Enemy Ship (Being used after updating the coordinates of the ship)
+	map[enemy_y[num]][enemy_x[num] - 1] = '{';
+	map[enemy_y[num]][enemy_x[num]] = 'V';
+	map[enemy_y[num]][enemy_x[num] + 1] = '}';
+}
