@@ -70,6 +70,8 @@ void sortAsteroid();
 // LASER INTERACTION
 bool laserHitAst(int laser_n);
 int hitAstNum(int laser_n);
+bool laserHitEnemy(int laser_n);
+int hitEnemyNum(int laser_n);
 // EXPLOSION RELATED
 void generateExplosion(int x, int y);
 void progressExplosion();
@@ -79,6 +81,8 @@ void generateEnemy(int y);
 void progressEnemy();
 void clearEnemyCurrentLocation(int num);
 void updateEnemyLocation(int num);
+void neutralizeEnemy(int i);
+void sortEnemy();
 // PROGRESSION
 void progressObjects();
 void gameOverFn();
@@ -107,10 +111,10 @@ int main()
 		clearRow(57);
 		printArr(laser_y, laser_count, 56);
 		printArr(ast_y, ast_count, 57);
-		if (FRAME % 5 == 0)  // to slow down the other things
+		if (FRAME % 5 == 0)  // to slow down some other things
 		{
 			progressAsteroid();
-			 // to remove any buggy display at bottom
+			 
 		}
 		if (FRAME % 50 == 0)
 		{
@@ -122,10 +126,10 @@ int main()
 		progressLaser();
 		progressExplosion();
 		progressEnemy();
-		/*exp_count--;
-		cleanBoundary();*/
+		if (FRAME % 100 == 0)cleanBoundary(); // to remove any buggy display at bottom
+
 		keyListen();
-		Sleep(10); // Game Overall Speed
+		Sleep(17); // Game Overall Speed
 	} while (gameOver==0);
 
 	if (gameOver)
@@ -303,6 +307,30 @@ void generateExplosion(int x, int y)
 	map[y][x] = 'O';
 	exp_count++;
 }
+void generateEnemy(int y)
+{
+	int x = 0;
+	if (FRAME % 2 == 0) // Randomizing the spawn and flow direction
+	{
+		enemy_x[enemy_count] = x = 1;
+		enemy_direction[enemy_count] = 1;
+		// Left Side, Towards Right
+	}
+	else
+	{
+		enemy_x[enemy_count] = x = LAST_X - 1;
+		enemy_direction[enemy_count] = 2;
+		// Right Side, Towards Left
+	}
+	enemy_y[enemy_count] = y;
+
+	map[y][x - 1] = '{';
+	map[y][x] = 'V';
+	map[y][x + 1] = '}';
+
+	enemy_count++;
+}
+
 
 // Progression of Objects
 void progressObjects() { // Progression for multiple objects
@@ -336,9 +364,21 @@ void progressLaser()
 		{
 			neutralizeLaser(i);
 		}
+		if (laserHitEnemy(i))
+		{
+			int enemyNum = hitEnemyNum(i);
+			debugMsg(1, FRAME);
+			/*map[laser_y[i]][laser_x[i]] = ' ';
+			map[ast_y[i]][ast_x[i]] = ' ';
+			map[ast_y[i] + 1][ast_x[i]] = ' ';*/
+			neutralizeEnemy(enemyNum); // <- CHeckpoint
+			generateExplosion(laser_x[i], laser_y[i]);
+			neutralizeLaser(i);
+		}
 	}
 }
 
+// Flags Functions
 bool laserHitAst(int laser_n)
 { // To check whether Laser is Hitting any Asteroid or not
 	for (int j = 0; j < ast_count; j++)
@@ -346,6 +386,21 @@ bool laserHitAst(int laser_n)
 		if (laser_x[laser_n] == ast_x[j])
 		{
 			if ( (laser_y[laser_n] == ast_y[j]) || (laser_y[laser_n]-1 == ast_y[j]))
+			{
+				return 1;
+			}
+		}
+	}
+	return 0;
+}
+bool laserHitEnemy(int laser_n)
+{
+	int laserVar = laser_x[laser_n];
+	for (int j = 0; j < enemy_count; j++)
+	{
+		if ( (laserVar == enemy_x[j]) || (laserVar == enemy_x[j]-1) || (laserVar == enemy_x[j]+1) ) // checking collision for left and right wing as well
+		{
+			if ((laser_y[laser_n] == enemy_y[j]) || (laser_y[laser_n] - 1 == enemy_y[j]))
 			{
 				return 1;
 			}
@@ -367,8 +422,23 @@ int hitAstNum(int laser_n)
 		}
 	}
 }
+int hitEnemyNum(int laser_n)   
+{ // To know, which Nth Asteroid is getting hit with laser
+	int laserVar = laser_x[laser_n];
+	for (int j = 0; j < enemy_count; j++)
+	{
+		if ((laserVar == enemy_x[j]) || (laserVar == enemy_x[j] - 1) || (laserVar == enemy_x[j] + 1)) // checking collision for left and right wing as well
+		{
+			if ((laser_y[laser_n] == enemy_y[j]) || (laser_y[laser_n] - 1 == enemy_y[j]))
+			{
+				gotoxy(0, 60); cout << j;
+				return j;
+			}
+		}
+	}
+}
 
-
+// Main Functions
 void neutralizeLaser(int i)
 { // Remove a specific laser and perform related operations
 	laser_y[i] = 0;
@@ -490,35 +560,76 @@ void sortAsteroid()
 		ast_x[i] = 0; 
 	}
 }
+void progressEnemy()
+{
+	for (int i = 0; i < enemy_count; i++)
+	{
+		if (enemy_direction[i] == 2)
+			if ((enemy_x[i] - 1) != 0/* && enemy_direction[i]==2*/) // if Left Wing of Enemy is NOT at column = 0 / very left , then move ship left
+			{
+				clearEnemyCurrentLocation(i);
+				enemy_x[i]--;
+				updateEnemyLocation(i);
+				if (enemy_x[i] == 1) // switching direction
+					enemy_direction[i] = 1;
+			}
+		if (enemy_direction[i] == 1)
+		{
+			if ((enemy_x[i] + 1) != LAST_X /*&& enemy_direction[i] == 2*/) // if Right Wing of Enemy is NOT at column = 29 / very right , then move ship right
+			{
+				clearEnemyCurrentLocation(i);
+				enemy_x[i]++;
+				updateEnemyLocation(i);
+				if (enemy_x[i] == LAST_X - 1) // switching direction
+					enemy_direction[i] = 2;
+			}
+
+		}
+	}
+}
+void clearEnemyCurrentLocation(int num)
+{
+	// To Clear the current position of the enemy ship
+	map[enemy_y[num]][enemy_x[num] - 1] = ' ';
+	map[enemy_y[num]][enemy_x[num]] = ' ';
+	map[enemy_y[num]][enemy_x[num] + 1] = ' ';
+}
+void updateEnemyLocation(int num)
+{
+	// To reprint the Enemy Ship (Being used after updating the coordinates of the ship)
+	map[enemy_y[num]][enemy_x[num] - 1] = '{';
+	map[enemy_y[num]][enemy_x[num]] = 'V';
+	map[enemy_y[num]][enemy_x[num] + 1] = '}';
+}
+void neutralizeEnemy(int i)
+{
+	clearEnemyCurrentLocation(i);
+	enemy_y[i] = enemy_x[i] = 49;
+	sortEnemy();
+	enemy_count--;
+}
+void sortEnemy()
+{// To sort the Array of Enemy Ships Coordinates
+	int count = 0;
+	for (int i = 0; i < enemy_count; i++) // Removing all indexes with value 49
+	{
+		if (enemy_y[i] != 49) {
+			enemy_y[count] = enemy_y[i];
+			enemy_x[count] = enemy_x[i];
+			count++;
+		}
+	}
+	for (int i = count; i < enemy_count; i++) {
+		enemy_y[i] = 0;
+		enemy_x[i] = 0;
+	}
+}
 // General Game
 void gameOverFn() { // Prints Game Over on screen
 	cout << endl;
 	cout << "Game Over" << endl;
 }
 
-void generateEnemy(int y)
-{
-	int x = 0;
-	if (FRAME % 2 == 0) // Randomizing the spawn and flow direction
-	{
-		enemy_x[enemy_count] = x = 1;
-		enemy_direction[enemy_count] = 1; 
-		// Left Side, Towards Right
-	}
-	else
-	{
-		enemy_x[enemy_count] = x = LAST_X-1;
-		enemy_direction[enemy_count] = 2;
-		// Right Side, Towards Left
-	}
-	enemy_y[enemy_count] = y;
-
-	map[y][x - 1] = '{';
-	map[y][x] = 'V';
-	map[y][x + 1] = '}';
-
-	enemy_count++;
-}
 
 // Coding and Debugging Related
 void gotoxy(int x, int y) // to get rid of System("CLS") and, get better rendering
@@ -581,46 +692,5 @@ void printStr(string line, int i_frame, int row)
 	//}
 }
 
-// Progress Note:  To make: Enemy Progress
-void progressEnemy()
-{
-	for (int i = 0; i < enemy_count; i++)
-	{
-		if(enemy_direction[i]==2)
-		if ((enemy_x[i] - 1) != 0/* && enemy_direction[i]==2*/) // if Left Wing of Enemy is NOT at column = 0 / very left , then move ship left
-		{
-			clearEnemyCurrentLocation(i);
-			enemy_x[i]--;
-			updateEnemyLocation(i);
-			if (enemy_x[i] == 1) // switching direction
-				enemy_direction[i] = 1;
-		}
-		if (enemy_direction[i] == 1)
-		{
-		 if ((enemy_x[i] + 1) != LAST_X /*&& enemy_direction[i] == 2*/) // if Right Wing of Enemy is NOT at column = 29 / very right , then move ship right
-		{
-			clearEnemyCurrentLocation(i);
-			enemy_x[i]++;
-			updateEnemyLocation(i);
-			if (enemy_x[i] == LAST_X-1) // switching direction
-				enemy_direction[i] = 2;
-		}
-
-		}
-	}
-}
-
-void clearEnemyCurrentLocation(int num)
-{
-	// To Clear the current position of the enemy ship
-	map[enemy_y[num]][enemy_x[num] - 1] = ' ';
-	map[enemy_y[num]][enemy_x[num]] = ' ';
-	map[enemy_y[num]][enemy_x[num] + 1] = ' ';
-}
-void updateEnemyLocation(int num)
-{
-	// To reprint the Enemy Ship (Being used after updating the coordinates of the ship)
-	map[enemy_y[num]][enemy_x[num] - 1] = '{';
-	map[enemy_y[num]][enemy_x[num]] = 'V';
-	map[enemy_y[num]][enemy_x[num] + 1] = '}';
-}
+// Progress Note:  
+// Organize the Enemy related functions. Next: Generate Enemies on different Rows, and create logic for neutralization of enemy ships and sorting array
