@@ -36,6 +36,13 @@ int enemy_count = 0;
 int enemy_x[100] = {};
 int enemy_y[100] = {};
 int enemy_direction[100] = {}; // Direction of motion of enemy ship. 1-Right, 2-left
+// Collectibles
+		//void generateCollectible(int x);
+// ---Stars
+int star_count = 0;
+int star_x[100] = {};
+int star_y[100] = {};
+
 // Storing keyboard hit key
 char key = 0;
 
@@ -72,6 +79,7 @@ bool laserHitAst(int laser_n);
 int hitAstNum(int laser_n);
 bool laserHitEnemy(int laser_n);
 int hitEnemyNum(int laser_n);
+bool AstHitShip(int ast_n);
 // EXPLOSION RELATED
 void generateExplosion(int x, int y);
 void progressExplosion();
@@ -83,6 +91,11 @@ void clearEnemyCurrentLocation(int num);
 void updateEnemyLocation(int num);
 void neutralizeEnemy(int i);
 void sortEnemy();
+// COLLECTIBLES
+void generateCollectible(int x);
+// ---STARS
+void generateStar(int x);
+
 // PROGRESSION
 void progressObjects();
 void gameOverFn();
@@ -111,22 +124,11 @@ int main()
 		clearRow(57);
 		printArr(laser_y, laser_count, 56);
 		printArr(ast_y, ast_count, 57);
-		if (FRAME % 5 == 0)  // to slow down some other things
-		{
-			progressAsteroid();
-			 
-		}
-		if (FRAME % 50 == 0)
-		{
-			//sortExplosion();
-
-		}
-
-
+		progressAsteroid();
 		progressLaser();
 		progressExplosion();
 		progressEnemy();
-		if (FRAME % 100 == 0)cleanBoundary(); // to remove any buggy display at bottom
+		if (FRAME % 25 == 0)cleanBoundary(); // to remove any buggy display at bottom
 
 		keyListen();
 		Sleep(17); // Game Overall Speed
@@ -191,7 +193,7 @@ void cleanBoundary()
 {
 	for (int i = 0; i < 30; i++)
 	{
-		map[49][i] = ' ';
+		map[49][i] = map[0][i] = ' ';
 	}
 }
 
@@ -330,7 +332,14 @@ void generateEnemy(int y)
 
 	enemy_count++;
 }
+void generateCollectible(int x)
+{
 
+}
+void generateStar(int x)
+{
+
+}
 
 // Progression of Objects
 void progressObjects() { // Progression for multiple objects
@@ -350,7 +359,7 @@ void progressLaser()
 			map[laser_y[i]][laser_x[i]] = ' ';
 			map[ast_y[i]][ast_x[i]] = ' ';
 			map[ast_y[i]+1][ast_x[i]] = ' ';
-			neutralizeAsteroid(astNum); // <- CHeckpoint
+			neutralizeAsteroid(astNum);
 			generateExplosion(laser_x[i],laser_y[i]);
 			neutralizeLaser(i);
 		}
@@ -368,10 +377,7 @@ void progressLaser()
 		{
 			int enemyNum = hitEnemyNum(i);
 			debugMsg(1, FRAME);
-			/*map[laser_y[i]][laser_x[i]] = ' ';
-			map[ast_y[i]][ast_x[i]] = ' ';
-			map[ast_y[i] + 1][ast_x[i]] = ' ';*/
-			neutralizeEnemy(enemyNum); // <- CHeckpoint
+			neutralizeEnemy(enemyNum);
 			generateExplosion(laser_x[i], laser_y[i]);
 			neutralizeLaser(i);
 		}
@@ -404,6 +410,19 @@ bool laserHitEnemy(int laser_n)
 			{
 				return 1;
 			}
+		}
+	}
+	return 0;
+}
+bool AstHitShip(int ast_n)
+{
+	int ax = ast_x[ast_n];
+	int ay = ast_y[ast_n];
+	if (ay == ship_y)
+	{
+		if ((ax==ship_x) || (ax==ship_x+1) || (ax==ship_x-1)) // if asteroid hits Ship or its wing
+		{
+			return 1;
 		}
 	}
 	return 0;
@@ -479,6 +498,11 @@ void progressAsteroid()
 		}
 		else if (ast_y[i] == 49) // if it is hitting bottom boundary
 		{
+			neutralizeAsteroid(i);
+		}
+		if (AstHitShip(i))
+		{
+			debugMsg(1, FRAME);
 			neutralizeAsteroid(i);
 		}
 	}
