@@ -31,6 +31,11 @@ int exp_count = 0;
 int exp_x[100] = {};
 int exp_y[100] = {};
 int exp_state[100] = {};
+// Enemy Ship
+int enemy_count = 0;
+int enemy_x[100] = {};
+int enemy_y[100] = {};
+int enemy_direction[100] = {}; // Direction of motion of enemy ship. 1-Right, 2-left
 // Storing keyboard hit key
 char key = 0;
 
@@ -68,6 +73,9 @@ int hitAstNum(int laser_n);
 // EXPLOSION RELATED
 void generateExplosion(int x, int y);
 void progressExplosion();
+void sortExplosion();
+// ENEMY SHIP RELATED
+void generateEnemy(int y);
 // PROGRESSION
 void progressObjects();
 void gameOverFn();
@@ -101,12 +109,17 @@ int main()
 			progressAsteroid();
 			 // to remove any buggy display at bottom
 		}
+		if (FRAME % 50 == 0)
+		{
+			//sortExplosion();
 
+		}
 
 
 		progressLaser();
 		progressExplosion();
-		cleanBoundary();
+		/*exp_count--;
+		cleanBoundary();*/
 		keyListen();
 		Sleep(10); // Game Overall Speed
 	} while (gameOver==0);
@@ -216,6 +229,10 @@ void buttonPressed(char btn)
 	case 'P':
 		generateAsteroid();
 		break;
+	case 'o':
+	case 'O':
+		generateEnemy(10);
+		break;
 	}
 	
 
@@ -271,7 +288,7 @@ void generateAsteroid()
 	int random = rand() % 30;
 	ast_x[ast_count] = random;
 	ast_y[ast_count] = 0;
-	map[ast_y[ast_count]][ast_x[ast_count]] = 'E';
+	map[ast_y[ast_count]][ast_x[ast_count]] = '#';
 	ast_count++;
 }
 void generateExplosion(int x, int y)
@@ -384,7 +401,7 @@ void progressAsteroid()
 		{
 			map[ast_y[i]][ast_x[i]] = ' ';
 			ast_y[i]++;
-			map[ast_y[i]][ast_x[i]] = 'E';
+			map[ast_y[i]][ast_x[i]] = '#';
 		}
 		else if (ast_y[i] == 49) // if it is hitting bottom boundary
 		{
@@ -405,15 +422,15 @@ void progressExplosion()
 	{
 		if (exp_state[i] == 3) // first stage of explosion
 		{
-			map[exp_y[i]][exp_x[i]] = '@';
-		}
-		else if (exp_state[i] == 2) // first stage of explosion
-		{
 			map[exp_y[i]][exp_x[i]] = 'O';
+		}
+		else if (exp_state[i] == 2) // second stage of explosion
+		{
+			map[exp_y[i]][exp_x[i]] = 'o';
 		}
 		else if (exp_state[i] == 1) // second stage of explosion
 		{
-			map[exp_y[i]][exp_x[i]] = 'o';
+			map[exp_y[i]][exp_x[i]] = '.';
 		}
 		else if (exp_state[i] == 0) // removal/final stage of explosion
 		{
@@ -426,7 +443,33 @@ void progressExplosion()
 			exp_state[i]--;
 	}
 }
+void sortExplosion()
+{	// Sort the Array of Explosion Coordinates, so the Neutralized Lasers get aside
+		for (int j = 0; j < exp_count; j++) // Re-arrange the laser arrays
+		{
+			for (int k = 0; k < exp_count; k++)
+			{
+				if (exp_state[k] == 0) // rearranges if this condiion follows
+				{
+					int temp = 0;
+					temp = exp_y[k];
+					exp_y[k] = exp_y[k + 1];
+					exp_y[k + 1] = temp;
 
+					temp = 0; exp_x[k] = 0;
+					temp = exp_x[k];
+					exp_x[k] = exp_x[k + 1];
+					exp_x[k + 1] = temp;
+
+					temp = 0; exp_state[k] = 0;
+					temp = exp_state[k];
+					exp_state[k] = exp_state[k + 1];
+					exp_state[k + 1] = temp;
+				}
+			}
+		}
+		exp_count--;
+}
 void sortAsteroid()
 { // To sort the Array of Asteroids Coordinates
 	int count = 0; 
@@ -449,7 +492,29 @@ void gameOverFn() { // Prints Game Over on screen
 	cout << "Game Over" << endl;
 }
 
+void generateEnemy(int y)
+{
+	int x = 0;
+	if (FRAME % 2 == 0) // Randomizing the spawn and flow direction
+	{
+		enemy_x[enemy_count] = x = 1;
+		enemy_direction[enemy_count] = 1; 
+		// Left Side, Towards Right
+	}
+	else
+	{
+		enemy_x[enemy_count] = x = LAST_X-1;
+		enemy_direction[enemy_count] = 2;
+		// Right Side, Towards Left
+	}
+	enemy_y[enemy_count] = y;
 
+	map[y][x - 1] = '{';
+	map[y][x] = 'V';
+	map[y][x + 1] = '}';
+
+	enemy_count++;
+}
 
 // Coding and Debugging Related
 void gotoxy(int x, int y) // to get rid of System("CLS") and, get better rendering
@@ -511,3 +576,5 @@ void printStr(string line, int i_frame, int row)
 	//	activationFrame = -1; // Reset activation frame for the next activation
 	//}
 }
+
+// Progress Note:  To make: Enemy Progress
