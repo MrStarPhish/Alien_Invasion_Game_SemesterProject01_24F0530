@@ -37,7 +37,11 @@ int enemy_count = 0;
 int enemy_x[100] = {};
 int enemy_y[100] = {};
 int enemy_direction[100] = {}; // Direction of motion of enemy ship. 1-Right, 2-left
-int enemy_life[100] = {}; // Keeps track of the duration of life of enemy ship
+int enemy_life[100] = {}; // Keeps track of the duration of life of enemy ship (in frames)
+// Enemy Lasers
+int e_laser_x[100] = {};
+int e_laser_y[100] = {};
+int e_laser_count = 0;
 // Collectibles
 		//void generateCollectible(int x);
 // ---Stars
@@ -71,6 +75,7 @@ void clearDevRow(int row);
 void printLaserStats();
 void printAsteroidStats();
 void printEnemyStats();
+void printEnemyLaserStats();
 void printFrameCount();
 // Game Related
 void cleanBoundary();
@@ -110,6 +115,12 @@ void clearEnemyCurrentLocation(int num);
 void updateEnemyLocation(int num);
 void neutralizeEnemy(int i);
 void sortEnemy();
+// ENEMY LASER RELATED
+void generateEnemyLaser();
+void shootEnemyLaser(int enemy_num);
+void progressEnemyLaser();
+void neutralizeEnemyLaser(int e_laser_num);
+void sortEnemyLaser();
 // COLLECTIBLES
 void generateCollectible(int x);
 void progressCollectible();
@@ -158,6 +169,7 @@ int main()
 		progressLaser();
 		progressExplosion();
 		progressEnemy();
+		progressEnemyLaser();
 		progressCollectible();
 		cleanBoundary(); // to remove any buggy display at top/bottom
 
@@ -267,6 +279,7 @@ void printDevNotes()
 	printLaserStats();
 	printAsteroidStats();
 	printEnemyStats();
+	printEnemyLaserStats();
 	printFrameCount();
 }
 void printLaserStats()
@@ -296,14 +309,23 @@ void printEnemyStats()
 	gotoxy(125, 9);
 	cout << "ENEMY X:"; printArr(enemy_x, enemy_count, 135, 9);
 }
+void printEnemyLaserStats()
+{
+	gotoxy(125, 10);
+	cout << "ENEMY RELATED";
+	gotoxy(125, 11);
+	cout << "E_LASER Y:"; printArr(e_laser_y, e_laser_count, 135, 11);
+	gotoxy(125, 12);
+	cout << "E_LASER X:"; printArr(e_laser_x, e_laser_count, 135, 12);
+}
 void printFrameCount()
 {
-	gotoxy(125, 11);
+	gotoxy(125, 15);
 	cout << "FRAME: " << FRAME;
 }
 void clearDevNotes()
 {
-	for (int i = 0; i <= 11; i++)
+	for (int i = 0; i <= 15; i++)
 	{
 		clearDevRow(i);
 	}
@@ -368,6 +390,9 @@ void buttonPressed(char btn)
 		break;
 	case '0':
 		showDevNotes(DevNotes);
+		break;
+	case '9':
+		generateEnemyLaser();
 		break;
 	}
 	
@@ -488,8 +513,6 @@ void generateMed(int x)
 
 
 
-
-
 // Flags Functions
 bool laserHitAst(int laser_n)
 { // To check whether Laser is Hitting any Asteroid or not
@@ -546,6 +569,7 @@ int hitAstNum(int laser_n)
 			}
 		}
 	}
+	return 0;
 }
 int hitEnemyNum(int laser_n)   
 { // To know, which Nth Asteroid is getting hit with laser
@@ -561,6 +585,7 @@ int hitEnemyNum(int laser_n)
 			}
 		}
 	}
+	return 0;
 }
 
 // Main Functions
@@ -875,6 +900,70 @@ void sortMed()
 		med_x[i] = 0;
 	}
 }
+
+// Enemey Laser Related
+void generateEnemyLaser()
+{
+	for (int i = 0; i < enemy_count; i++)
+	{
+		shootEnemyLaser(i);
+	}
+}
+void shootEnemyLaser(int enemy_num)
+{
+	// Generates an enemy laser
+	int z = enemy_num;
+	e_laser_x[e_laser_count] = enemy_x[z]; // same X-axis
+	e_laser_y[e_laser_count] = enemy_y[z] + 1; // +1 Y-Axis
+	map[enemy_y[z] + 1][enemy_x[z]] = '!';
+	e_laser_count++;
+}
+void progressEnemyLaser()
+{
+	for (int i = 0; i < e_laser_count; i++)
+	{
+		if (e_laser_y[i] != 49) // if Asteroid not hitting bottom boundary
+		{
+			map[e_laser_y[i]][e_laser_x[i]] = ' ';
+			e_laser_y[i]++;
+			map[e_laser_y[i]][e_laser_x[i]] = '!';
+		}
+		else if (e_laser_y[i] == 49) // if it is hitting bottom boundary
+		{
+			neutralizeEnemyLaser(i);
+		}
+		/*if (AstHitShip(i))
+		{
+			neutralizeAsteroid(i);
+		}*/
+	}
+}
+void neutralizeEnemyLaser(int e_laser_num)
+{ // Removal of Enemy Laser and other related functions
+	int z = e_laser_num;
+	map[e_laser_y[z]][e_laser_x[z]] = ' ';
+	e_laser_y[z] = 49;
+	sortEnemyLaser();
+	e_laser_count--;
+}
+void sortEnemyLaser()
+{
+	// To sort the Array of Enemy Lasers Coordinates
+	int count = 0;
+	for (int i = 0; i < e_laser_count; i++) // Removing all indexes with value 49
+	{
+		if (e_laser_y[i] != 49) {
+			e_laser_y[count] = e_laser_y[i];
+			e_laser_x[count] = e_laser_x[i];
+			count++;
+		}
+	}
+	for (int i = count; i < e_laser_count; i++) {
+		e_laser_y[i] = 0;
+		e_laser_x[i] = 0;
+	}
+}
+
 
 // Progression of Objects
 void progressObjects() { // Progression for multiple objects
