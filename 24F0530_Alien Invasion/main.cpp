@@ -1,3 +1,4 @@
+// F24-0530 - Semester Project ...
 #include<iostream>
 #include<windows.h> // for Sleep() and gotoxy()
 #include<conio.h> // for _getch() and _kbhit()
@@ -19,7 +20,8 @@ unsigned long int FRAME = 0;
 // Game UI
 int stage = 0; // 0 for Menu, 1 for Level-1, 2 for Level-2
 // Variable for Speed Factor
-int s = 1;
+int relativeSpeedVar = 1;
+int sleepSeed = 100;
 // Map Related
 const int ROWS = 50;
 const int COLS = 30;
@@ -28,6 +30,7 @@ char map[ROWS][COLS] = {};
 // General Game Mechanics Flags
 bool DevNotes = 0;
 bool gameOver = 0;
+bool gameExit = 0;
 bool astHitShip = 0;
 bool shipCantMove = 0;
 // Menu Related 
@@ -104,6 +107,8 @@ void printEnemyStats();
 void printEnemyLifetime();
 void printEnemyLaserStats();
 void printFrameCount();
+void printSleepVar();
+void printRelativeSpeedVar();
 void printScoreboard();
 void clearDevNotesScoreboard();
 void printName(int num);
@@ -130,6 +135,10 @@ void readStats();
 void sortStats();
 void addStatsEntry();
 void rewriteStats();
+// HIGH SCORES related
+void displayHighScores();
+// INSTRUCTIONS REALTED
+void displayInstructions();
 // GameBar Related
 void displayGameBarStats();
 void clearGameBarStats();
@@ -137,6 +146,7 @@ void printScore();
 void printDistance();
 void printHealth();
 void printHealthBar();
+void printName();
 // Object Generation Related
 void generateObject(int i_frame);
 // Game Related
@@ -219,6 +229,8 @@ void progressObjects();
 void gameOverFn();
 void printGameOver();
 void checkGameStatus();
+// Exit
+void gameExitFn();
 
 
 
@@ -227,71 +239,104 @@ void checkGameStatus();
 
 
 int main()
-{	// ALL THE INITIALS HERE , aka One Timers
-	hideCursor();
-	setConsoleSize(1280, 720);
-	initializeMap();
-	resetScore(); resetHealth(); resetDistance();
-	defaultMenuPointer(); // setting pointer to default location at the beginning
+{	do{ // -- Program Loop
+		// ALL THE INITIALS HERE , aka One Timers
+		hideCursor();
+		setConsoleSize(1280, 720);
+		initializeMap();
+		resetScore(); resetHealth(); resetDistance();
+		defaultMenuPointer(); // setting pointer to default location at the beginning
 
-	do { // -------------------------- GAME LOOP
-		
-	   // keeping track of game's progression
-	
-		if (stage == 0) // Menu
-		{
-			char menuKey;
-			displayStartupMenu();
-			menuKey = _getch();
-			menuKeyListen(menuKey);
-		}
-		if (stage == 1) // Level 1
-		{
-			s = 1; // speed factor
-			FRAME++; // tracking Frame
+		do { // -------------------------- GAME LOOP
 
-			// Ship and Render
-			processShip(ship_x, ship_y);
-			renderMap();
-			renderGameBar();
-			// Print stuff on SIde of the game
-			checkForDevNotesDisplay();
-			// Print stuff below the game
-			clearGameBarStats();
-			displayGameBarStats();
-			// Object Generation
-			generateObject(FRAME);
-			generateEnemyLaser();
-			
-			// Slowed Down Progression , For Game Difficulty
-			if (FRAME % s == 0)
+			// keeping track of game's progression
+
+			if (stage == 0 && (!gameExit)) // Menu
 			{
-				progressEnemy();
-				progressAsteroid();
+				char menuKey;
+				displayStartupMenu();
+				menuKey = _getch();
+				menuKeyListen(menuKey);
 			}
-			// General
-			progressLaser();
-			progressExplosion();
-			progressEnemyLaser();
-			progressCollectible();
-			// Distance
-			incDistance(2);
-			if (DISTANCE!=0 && DISTANCE % 100 == 0)
-				incScore(20);  // every 100m distance gives +20 score
+			if (stage == 3) // HIGH SCORES SCREEN
+			{
+				initializeMap();
+				renderMap();
+				displayHighScores();
+			
+				cout << "Press Any Key To Go Back.";
+				_getch();
+				stage = 0;
+			}
+			if (stage == 4)
+			{
+				initializeMap();
+				renderMap();
+				displayInstructions();
 
-			cleanBoundary(); // to remove any buggy display at top/bottom
-			keyListen();
-			checkGameStatus();
-			Sleep(100); // Game Overall Speed
+				gotoxy(3, 30);
+				setColor(5);
+				cout << "Press Any Key To Go Back.";
+				setColor(7);
+
+				_getch();
+				stage = 0;
+			}
+			if (stage == 1) // Level 1
+			{
+				FRAME++; // tracking Frame
+
+				// Ship and Render
+				processShip(ship_x, ship_y);
+				renderMap();
+				renderGameBar();
+				// Print stuff on SIde of the game
+				checkForDevNotesDisplay();
+				// Print stuff below the game
+				clearGameBarStats();
+				displayGameBarStats();
+				// Object Generation
+				generateObject(FRAME);
+				generateEnemyLaser();
+				// Slowed Down Progression , For Variable Game Difficulty
+				if (FRAME % relativeSpeedVar == 0)
+				{
+					progressEnemy();
+					progressAsteroid();
+				}
+				// General
+				progressLaser();
+				progressExplosion();
+				progressEnemyLaser();
+				progressCollectible();
+				// Distance
+				incDistance(2);
+				if (DISTANCE != 0 && DISTANCE % 100 == 0)
+					incScore(20);  // every 100m distance gives +20 score
+
+				cleanBoundary(); // to remove any buggy display at top/bottom
+				keyListen();
+				checkGameStatus();
+				Sleep(sleepSeed); // Game Overall Speed
+			}
+		} while (gameOver == 0);
+
+	if (gameOver)  // Current Game Session's Over Screen
+		{
+			readStats();
+			addStatsEntry();
+			sortStats();
+			gameOverFn();
+
+			gameOver = 0;
+			stage = 0;
+			resetFrame();
+			_getch();
 		}
-	} while (gameOver==0);
+} while (gameExit == 0);
 
-	if (gameOver)
-	{
-		readStats();
-		sortStats();
-	}
-
+// Game Exits here
+	system("CLS");
 	system("pause");
 	return 0;
 }
@@ -392,11 +437,13 @@ void menuPointerSelect()
 		stage = 1;
 		break;
 	case 31:
-		
+		stage = 4;
 		break;
 	case 32:
+		stage = 3;
 		break;
 	case 33:
+		gameExitFn();
 		break;
 	}
 }
@@ -564,6 +611,84 @@ void rewriteStats()
 		write << names[i] << "," << scores[i] << endl;
 	}
 }
+// HIGH SCORES related
+void displayHighScores()
+{
+	readStats();
+	sortStats();
+
+	int limit;
+	if (scoreEntries > 10)
+		limit = 10;
+	else
+		limit = scoreEntries;
+
+	gotoxy(7, 10);
+	setColor(6);
+	cout << "High Scores";
+
+	
+	setColor(7);
+	gotoxy(7,12);
+	cout << "NAME : SCORE";
+	gotoxy(7, 13);
+	cout << "============";
+	for (int i = 0; i < limit; i++)
+	{	
+		gotoxy(7,15+i);
+		setColor(9);
+		printName(i);
+		setColor(7);
+		cout << " : ";
+		setColor(5);
+		printScore(i);
+	}
+	gotoxy(3, 15+limit);
+}
+// INSTRUCTIONS realted
+void displayInstructions()
+{
+	gotoxy(1, 5);
+	setColor(11);
+	cout << "CONTROLS";
+	setColor(7);
+	gotoxy(1, 6);
+	cout << "W,A,S,D to move spaceship.";
+	gotoxy(1, 7);
+	cout << "Space/B to shoot laser.";
+	gotoxy(1, 8);
+	cout << "0 to toggle Developer Notes.";
+	gotoxy(1, 10);
+	setColor(11);
+	cout << "DEV CONTROLS";
+	setColor(7);
+	gotoxy(1, 11);
+	cout << "P for Asteroid";
+	gotoxy(1, 12);
+	cout << "O for Enemy Ship";
+	gotoxy(1, 13);
+	cout << "9 for Enemy Laser";
+	gotoxy(1, 14);
+	cout << "I for Collectibles";
+
+	gotoxy(1, 17);
+	setColor(11);
+	cout << "INSTRUCTIONS";
+	setColor(7);
+	gotoxy(1, 18);
+	cout << "-Dodge Asteroids (#)";
+	gotoxy(1, 19);
+	cout << "-Shoot Asteroids and Enemy{V}";
+	gotoxy(1, 20);
+	cout << "-Collect Money($) for Score";
+	gotoxy(1, 21);
+	cout << "-Pick Up Med-Kit(+) for Health";
+	gotoxy(1, 23);
+	cout << "Destroy Asteroids: +20 Score";
+	gotoxy(1, 24);
+	cout << "Destroy Enemy: +50 Score";
+}
+
 // Object Generation Related
 void generateObject(int i_frame)
 {
@@ -738,7 +863,10 @@ void printDevNotes()
 	printEnemyStats();
 	printEnemyLaserStats();
 	printEnemyLifetime();
+	gotoxy(125, 14); setColor(13); cout << "24F-0530"; setColor(7);
 	printFrameCount();
+	printSleepVar();
+	printRelativeSpeedVar();
 	printScoreboard();
 }
 void printLaserStats()
@@ -788,9 +916,19 @@ void printFrameCount()
 	gotoxy(125, 15);
 	cout << "FRAME: " << FRAME;
 }
+void printSleepVar()
+{
+	gotoxy(125, 16);
+	cout << "SleepVariable: " << sleepSeed;
+}
+void printRelativeSpeedVar()
+{
+	gotoxy(125, 17);
+	cout << "RelativeSpeedVar: " << relativeSpeedVar;
+}
 void clearDevNotes()
 {
-	for (int i = 0; i <= 15; i++)
+	for (int i = 0; i <= 17; i++)
 	{
 		clearDevRow(i);
 	}
@@ -841,6 +979,7 @@ void displayGameBarStats()
 	printScore();
 	printDistance();
 	printHealth();
+	printName();
 }
 void clearGameBarStats()
 {
@@ -859,28 +998,45 @@ void clearGameBarStats()
 void printScore()
 {
 	gotoxy(2, 53);
+	setColor(2);
 	cout << "SCORE: " <<"$ "<< SCORE;
 }
 void printDistance()
 {
 	gotoxy(2, 55);
+	setColor(9);
 	cout << "DISTANCE: " << DISTANCE<<" m";
 }
 void printHealth()
 {
 	gotoxy(2, 57);
+	setColor(7);
 	cout << "SHIP HEALTH: ";
 	printHealthBar();
 }
 void printHealthBar()
 {
+	setColor(7);
 	cout << "[";
+	// dynamic coloring of Health Bar
+	if (HEALTH / 10 > 7) setColor(2);
+	else if (HEALTH / 10 >= 5) setColor(14);
+	else if (HEALTH / 10 >= 2) setColor(6);
+	else setColor(12);
 	for (int i = 1; i <= (HEALTH / 10); i++)
-	{
+	{	
 		cout << "/";
 	}
+	setColor(7);
 	gotoxy(26,57);
 	cout << "]";
+}
+void printName()
+{
+	gotoxy(2, 59);
+	cout << "PLAYER NAME: ";
+	setColor(13);
+	cout << name;
 }
 // Button Listener
 void keyListen()
@@ -946,6 +1102,22 @@ void buttonPressed(char btn)
 		break;
 	case '=':
 		forceGameOver();
+		break;
+	case ']':
+		if (sleepSeed + 10 <= 150)
+			sleepSeed += 10;
+		break;
+	case '[':
+		if (sleepSeed - 10 >= 10)
+			sleepSeed -= 10;
+		break;
+	case '/':
+		if (relativeSpeedVar+1 <= 10)
+			relativeSpeedVar++;
+		break;
+	case '.':
+		if (relativeSpeedVar - 1 > 0)
+			relativeSpeedVar--;
 		break;
 	}
 	
@@ -1626,17 +1798,22 @@ void printGameOver()
 {
 	initializeMap();
 	renderMap();
-	gotoxy(8, 20);
+	gotoxy(10, 20);
 	setColor(12);
 	cout << "GAME OVER!";
 	setColor(7);
-	gotoxy(5,25);
+	gotoxy(3,25);
 	cout << "Press Any Key To Continue";
 }
 void checkGameStatus()
 {
 	if (HEALTH <= 0)
 		gameOver = 1;
+}
+// Game Exit
+void gameExitFn()
+{
+	gameExit = 1;
 }
 
 
@@ -1749,9 +1926,6 @@ void printStr(string line, int i_frame, int row)
 	//}
 }
 
-// Progress Note:  
-// Work on Collectibles.
-
 void shipMovementStatus(int callFrame)
 {	// Ship cannot move for 20 frames if it got hit with Asteroid (calling in Asteroid function)
 	//static int activationFrame = -1;  // storing the frame at which this function is activated
@@ -1768,4 +1942,5 @@ void shipMovementStatus(int callFrame)
 }
 // ^ Cooking something, but not working
 
-
+//PRogress Note:
+// Fix File-Writing
