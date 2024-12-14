@@ -2,6 +2,7 @@
 #include<windows.h> // for Sleep() and gotoxy()
 #include<conio.h> // for _getch() and _kbhit()
 #include<string> // for storing name
+#include<fstream>
 
 
 using namespace std;
@@ -34,7 +35,13 @@ int menuPointerLocation = 0;// for storing y-component of Pointer
 int& pointer_y = menuPointerLocation;
 int pointer_x = 8;
 // Name Input / File Handling related
+string scoreFileName = "scores.txt";
 string name;
+string names[50] = {};
+int scores[50] = {};
+string lines[50] = {};
+int scoreEntries = 0;
+
 // Ship Coords
 int ship_y = LAST_Y-1, ship_x = LAST_X/2;
 // Laser Count and Coords
@@ -97,6 +104,10 @@ void printEnemyStats();
 void printEnemyLifetime();
 void printEnemyLaserStats();
 void printFrameCount();
+void printScoreboard();
+void clearDevNotesScoreboard();
+void printName(int num);
+void printScore(int num);
 // Startup Menu Related
 void displayStartupMenu();
 void printStartupHeader();
@@ -114,7 +125,11 @@ void menuPointerSelect();
 // Name Input / File Handling related
 void inputName();
 void inputCheck();
-void saveStats();
+void countEntries();
+void readStats();
+void sortStats();
+void addStatsEntry();
+void rewriteStats();
 // GameBar Related
 void displayGameBarStats();
 void clearGameBarStats();
@@ -200,7 +215,9 @@ void incDistance(int amount);
 void shipMovementStatus(int callFrame);
 // PROGRESSION
 void progressObjects();
+// Game Over
 void gameOverFn();
+void printGameOver();
 void checkGameStatus();
 
 
@@ -271,7 +288,8 @@ int main()
 
 	if (gameOver)
 	{
-		saveStats();
+		readStats();
+		sortStats();
 	}
 
 	system("pause");
@@ -413,9 +431,138 @@ void inputCheck()
 		name = name.substr(0, 5);
 	}
 }
-void saveStats()
-{
+void countEntries()
+{	// for counting no.of entries in the scores file
+	ifstream read;
+	string temp;
+	read.open(scoreFileName, ios::in);
+	if (read.is_open()) // if file is opened
+	{
+		while (getline(read, temp))
+		{
+			scoreEntries++;
+		}
+	}
+	read.close();
+}
+void readStats()
+{	
+	ifstream read;
+	string temp;
+	read.open(scoreFileName, ios::in);
+	if (read.is_open()) // if file is opened
+	{
+		while (getline(read, temp))
+		{
+			lines[scoreEntries] = temp;
+			scoreEntries++;
+		}
+	}
 
+	// TODO: Start reading file from shuru say again
+	read.close();
+	read.open(scoreFileName, ios::in);
+
+	// READING file here, and storing each line in names/strong array
+	for (int i = 0; i < scoreEntries; i++) // entry iterator
+	{
+		string temp = "";
+		string temp_name = "";
+		int temp_score = 0;
+
+		int column = 0;  
+		// since String-Array behaves like 2D Array
+		string line = lines[i]; 
+		for (int k = 0; k<=line.size(); k++)
+		{
+			char c = (k < line.size()) ? line[k] : ','; // read each character and store it
+			if (c == ',') 
+			{
+				if (column == 0) {
+					names[i] = temp;
+				}
+				else if (column == 1) 
+				{
+					scores[i] = stoi(temp);
+				}
+				column++;
+				temp = "";
+			}
+			else temp += c;
+		}
+		
+		//string temp = "";
+		//string temp_name = "";
+		//int temp_score = 0;
+
+		//int column = 0;  
+		//temp = "\0";
+		//// since String-Array behaves like 2D Array
+		//string line = lines[i]; 
+		//for (int k = 0; line[k] != '\0'; k++)
+		//{
+		//	char c = line[k]; // read each character and store it
+		//	if (c == ',' || c == '\0') {
+		//		if (column == 0) {
+		//			names[i] = temp + "\0";
+		//		}
+		//		else if (column == 1) {
+		//			scores[i] = stoi(temp);
+		//		}
+		//		column++;
+		//		temp = "\0";
+		//	}
+		//	else temp += c;
+		//}
+		
+		
+		//int j = 0; // first half goes in names[] , second half goes in scores[]
+		//for (; temp[j]!=','; j++) 
+		//{
+		//	temp_name[j] = temp[j];
+		//}
+		//for (; temp[j] != '\n'; j++)
+		//{
+		//	temp_score[j] = temp[j];
+		//}
+		//names[i] = temp_name;
+		//scores[i] = temp_score;
+	}
+}
+void sortStats()
+{   // Bubble Sorting the arrays for File, in Descending Order
+	for (int i = 0; i < scoreEntries; i++)
+	{
+		for (int j = 0; j < scoreEntries - 1; j++)
+		{
+			if (scores[i] < scores[i + 1])
+			{
+				int temp = scores[i]; // Swapping scores
+				scores[i] = scores[i + 1];
+				scores[i + 1] = temp;
+
+				string temp2 = names[i]; // Swapping respective names
+				names[i] = names[i + 1];
+				names[i + 1] = temp2;
+			}
+		}
+	}
+}
+void addStatsEntry()
+{
+	names[scoreEntries] = name;
+	scores[scoreEntries] = SCORE;
+	scoreEntries++;
+}
+void rewriteStats()
+{
+	ofstream write;
+	write.open(scoreFileName, ios::out);
+	
+	for (int i = 0; i < scoreEntries; i++)
+	{
+		write << names[i] << "," << scores[i] << endl;
+	}
 }
 // Object Generation Related
 void generateObject(int i_frame)
@@ -564,6 +711,7 @@ void checkForDevNotesDisplay()
 	else
 	{
 		clearDevNotes();
+		clearDevNotesScoreboard();
 	}
 }
 void showDevNotes(bool &a)
@@ -591,6 +739,7 @@ void printDevNotes()
 	printEnemyLaserStats();
 	printEnemyLifetime();
 	printFrameCount();
+	printScoreboard();
 }
 void printLaserStats()
 {
@@ -646,6 +795,13 @@ void clearDevNotes()
 		clearDevRow(i);
 	}
 }
+void clearDevNotesScoreboard()
+{
+	for (int i = 20; i <= 30; i++)
+	{
+		clearDevRow(i);
+	}
+}
 void clearDevRow(int row)
 {
 	gotoxy(125, row);
@@ -653,6 +809,31 @@ void clearDevRow(int row)
 	{
 		cout << " ";
 	}
+}
+void printScoreboard()
+{
+	static int button = 0;
+	if (button == 0)
+	{
+		readStats();
+		sortStats();
+		for (int i = 0; i < scoreEntries; i++)
+		{
+			gotoxy(125, 20+i);
+			printName(i);
+			cout << " : ";
+			printScore(i);
+		}
+		button = 1;
+	}
+}
+void printName(int num) // num'th name
+{
+	cout << names[num];
+}
+void printScore(int num) // num'th score
+{
+	cout << scores[num];
 }
 // GameBar Related
 void displayGameBarStats()
@@ -928,7 +1109,7 @@ bool AstHitShip(int ast_n)
 		if ((ax==ship_x) || (ax==ship_x+1) || (ax==ship_x-1)) // if asteroid hits Ship or its wing
 		{
 			astHitShip = 1;
-			decHealth(20);
+			decHealth(10);
 			return 1;
 		}
 	}
@@ -943,6 +1124,7 @@ bool EnemyLaserHitShip(int e_laser_n)
 	{
 		if ((ex == ship_x) || (ex == ship_x + 1) || (ex == ship_x - 1)) // if enemy laser hits Ship or its wing
 		{
+			decHealth(20);
 			return 1;
 		}
 	}
@@ -1438,8 +1620,18 @@ void progressCollectible()
 
 // General Game
 void gameOverFn() { // Prints Game Over on screen
-	cout << endl;
-	cout << "Game Over" << endl;
+	printGameOver();
+}
+void printGameOver()
+{
+	initializeMap();
+	renderMap();
+	gotoxy(8, 20);
+	setColor(12);
+	cout << "GAME OVER!";
+	setColor(7);
+	gotoxy(5,25);
+	cout << "Press Any Key To Continue";
 }
 void checkGameStatus()
 {
@@ -1562,16 +1754,18 @@ void printStr(string line, int i_frame, int row)
 
 void shipMovementStatus(int callFrame)
 {	// Ship cannot move for 20 frames if it got hit with Asteroid (calling in Asteroid function)
-	static int activationFrame = -1;  // storing the frame at which this function is activated
-	if (shipCantMove == 0)
-	{
-		activationFrame = callFrame;
-		shipCantMove = 1;
-	}
-	else if (FRAME >= activationFrame + 20) // restore after 20 frames
-	{
-		shipCantMove = 0;
-		activationFrame = -1;
-	}
+	//static int activationFrame = -1;  // storing the frame at which this function is activated
+	//if (shipCantMove == 0)
+	//{
+	//	activationFrame = callFrame;
+	//	shipCantMove = 1;
+	//}
+	//else if (FRAME >= activationFrame + 20) // restore after 20 frames
+	//{
+	//	shipCantMove = 0;
+	//	activationFrame = -1;
+	//}
 }
 // ^ Cooking something, but not working
+
+
