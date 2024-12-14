@@ -1,5 +1,5 @@
 #include<iostream>
-#include<windows.h> // for Sleep() and gotoxy
+#include<windows.h> // for Sleep() and gotoxy()
 #include<conio.h> // for _getch() and _kbhit()
 
 
@@ -15,6 +15,7 @@ const int COLS = 30;
 const int LAST_X = COLS - 1, LAST_Y = ROWS - 1;
 char map[ROWS][COLS] = {};
 // General Game Mechanics Flags
+bool DevNotes = 0;
 bool gameOver = 0;
 // Ship Coords
 int ship_y = LAST_Y-1, ship_x = LAST_X/2;
@@ -36,12 +37,18 @@ int enemy_count = 0;
 int enemy_x[100] = {};
 int enemy_y[100] = {};
 int enemy_direction[100] = {}; // Direction of motion of enemy ship. 1-Right, 2-left
+int enemy_life[100] = {}; // Keeps track of the duration of life of enemy ship
 // Collectibles
 		//void generateCollectible(int x);
 // ---Stars
 int star_count = 0;
 int star_x[100] = {};
 int star_y[100] = {};
+// ---MedKit
+int med_count = 0;
+int med_x[100] = {};
+int med_y[100] = {};
+
 
 // Storing keyboard hit key
 char key = 0;
@@ -49,10 +56,22 @@ char key = 0;
 // -------------Declaring all functions
 // Coding related
 void gotoxy(int x, int y);
+void hideCursor();
+void setConsoleSize(int width, int height);
 void debugMsg(int code, int frame);
-void printArr(int arr[], int size, int row);
+void printArr(int arr[], int size, int col, int row);
 void printStr(string line, int i_frame, int row);
 void clearRow(int row);
+// Dev Notes
+void checkForDevNotesDisplay();
+void showDevNotes(bool &a);
+void printDevNotes();
+void clearDevNotes();
+void clearDevRow(int row);
+void printLaserStats();
+void printAsteroidStats();
+void printEnemyStats();
+void printFrameCount();
 // Game Related
 void cleanBoundary();
 void processShip(int x, int y);
@@ -93,8 +112,17 @@ void neutralizeEnemy(int i);
 void sortEnemy();
 // COLLECTIBLES
 void generateCollectible(int x);
+void progressCollectible();
 // ---STARS
 void generateStar(int x);
+void progressStar();
+void neutralizaStar(int star_n);
+void sortStar();
+// ---MED KIT
+void generateMed(int x);
+void progressMed();
+void neutralizeMed(int med_n);
+void sortMed();
 
 // PROGRESSION
 void progressObjects();
@@ -108,7 +136,8 @@ void gameOverFn();
 
 int main()
 {	// ALL THE INITIALS HERE aka One Timers
-	
+	hideCursor();
+	setConsoleSize(1280, 720);
 	initializeMap();
 
 
@@ -117,18 +146,20 @@ int main()
 		// keeping track of game's progression
 		FRAME++;
 		// Ship and Render
+		
 		processShip(ship_x, ship_y);
 		renderMap();
 		// Print Below-Game stuff here
-		clearRow(56);
-		clearRow(57);
-		printArr(laser_y, laser_count, 56);
-		printArr(ast_y, ast_count, 57);
+		checkForDevNotesDisplay();
+		
+		
+		// General
 		progressAsteroid();
 		progressLaser();
 		progressExplosion();
 		progressEnemy();
-		if (FRAME % 25 == 0)cleanBoundary(); // to remove any buggy display at bottom
+		progressCollectible();
+		cleanBoundary(); // to remove any buggy display at top/bottom
 
 		keyListen();
 		Sleep(17); // Game Overall Speed
@@ -143,15 +174,16 @@ int main()
 	return 0;
 }
 
-// Render Related
 
+
+
+// Render Related
 void processShip(int x, int y)
 { // To store the location of ship
 	map[y][x-1] = '<';
 	map[y][x] = '^';
 	map[y][x+1] = '>';
 }
-
 void initializeMap() {
 	// Initializes the whole map array
 	for (int i = 0; i < ROWS; i++)
@@ -162,7 +194,6 @@ void initializeMap() {
 		}
 	}
 }
-
 void renderMap() 
 { // To print everything
 	gotoxy(0, 0);
@@ -188,12 +219,101 @@ void renderMap()
 	{
 		cout << "=";
 	}
+	gotoxy(0, 0);
 }
 void cleanBoundary()
-{
-	for (int i = 0; i < 30; i++)
+{	// To clean Top and Bottom boundary to refrain from any buggy still display
+	if (FRAME % 25 == 0)
 	{
-		map[49][i] = map[0][i] = ' ';
+		for (int i = 0; i < 30; i++)
+		{
+			map[49][i] = map[0][i] = ' ';
+		}
+	}
+}
+// DevNotes Related
+void checkForDevNotesDisplay()
+{
+	if (DevNotes)
+	{
+		if (FRAME % 10 == 0)
+			clearDevNotes();
+		printDevNotes();
+	}
+	else
+	{
+		clearDevNotes();
+	}
+}
+void showDevNotes(bool &a)
+{
+	static int button = 0;
+	if (button == 0)
+	{
+		button = 1;
+		a = 1;
+	}
+	else if (button == 1)
+	{
+		button = 0;
+		a = 0;
+	}
+}
+void printDevNotes()
+{
+	gotoxy(125, 0);
+	cout << "-- DEVELOPER NOTES --";
+	gotoxy(125, 1);
+	printLaserStats();
+	printAsteroidStats();
+	printEnemyStats();
+	printFrameCount();
+}
+void printLaserStats()
+{
+	gotoxy(125, 1);
+	cout << "LASER RELATED";
+	gotoxy(125, 2);
+	cout << "LASER Y:"; printArr(laser_y, laser_count, 135, 2);
+	gotoxy(125, 3);
+	cout << "LASER X:"; printArr(laser_x, laser_count, 135, 3);
+}
+void printAsteroidStats()
+{
+	gotoxy(125, 4);
+	cout << "ASTEROID RELATED";
+	gotoxy(125, 5);
+	cout << "AST Y:"; printArr(ast_y, ast_count, 135, 5);
+	gotoxy(125, 6);
+	cout << "AST X:"; printArr(ast_x, ast_count, 135, 6);
+}
+void printEnemyStats()
+{
+	gotoxy(125, 7);
+	cout << "ENEMY RELATED";
+	gotoxy(125, 8);
+	cout << "ENEMY Y:"; printArr(enemy_y, enemy_count, 135, 8);
+	gotoxy(125, 9);
+	cout << "ENEMY X:"; printArr(enemy_x, enemy_count, 135, 9);
+}
+void printFrameCount()
+{
+	gotoxy(125, 11);
+	cout << "FRAME: " << FRAME;
+}
+void clearDevNotes()
+{
+	for (int i = 0; i <= 11; i++)
+	{
+		clearDevRow(i);
+	}
+}
+void clearDevRow(int row)
+{
+	gotoxy(125, row);
+	for (int i = 0; i < 80; i++)
+	{
+		cout << " ";
 	}
 }
 
@@ -206,7 +326,6 @@ void keyListen()
 		buttonPressed(key);
 	}
 }
-
 void buttonPressed(char btn) 
 { // To process the pressed key
 	switch (btn)
@@ -242,6 +361,13 @@ void buttonPressed(char btn)
 	case 'o':
 	case 'O':
 		generateEnemy(10);
+		break;
+	case 'i':
+	case 'I':
+		generateCollectible(2);
+		break;
+	case '0':
+		showDevNotes(DevNotes);
 		break;
 	}
 	
@@ -331,58 +457,38 @@ void generateEnemy(int y)
 	map[y][x + 1] = '}';
 
 	enemy_count++;
+	enemy_life[enemy_count] = 1;
 }
 void generateCollectible(int x)
 {
-
-}
-void generateStar(int x)
-{
-
-}
-
-// Progression of Objects
-void progressObjects() { // Progression for multiple objects
-	progressLaser();
-	progressAsteroid();
-}
-
-
-void progressLaser()
-{ // Movement of Laser(s)
-	for (int i = 0; i < laser_count; i++) // i'th laser
+	if (x == 1)
 	{
-		if (laserHitAst(i))
-		{
-			int astNum = hitAstNum(i);
-			debugMsg(1,FRAME);
-			map[laser_y[i]][laser_x[i]] = ' ';
-			map[ast_y[i]][ast_x[i]] = ' ';
-			map[ast_y[i]+1][ast_x[i]] = ' ';
-			neutralizeAsteroid(astNum);
-			generateExplosion(laser_x[i],laser_y[i]);
-			neutralizeLaser(i);
-		}
-		else if (laser_y[i] != 0) // if laser not hitting top boundary, move them upward
-		{
-			map[laser_y[i]][laser_x[i]] = ' ';
-			laser_y[i]--;
-			map[laser_y[i]][laser_x[i]] = '|';
-		}
-		else if (laser_y[i]==0) // If laser hit boundary, 
-		{
-			neutralizeLaser(i);
-		}
-		if (laserHitEnemy(i))
-		{
-			int enemyNum = hitEnemyNum(i);
-			debugMsg(1, FRAME);
-			neutralizeEnemy(enemyNum);
-			generateExplosion(laser_x[i], laser_y[i]);
-			neutralizeLaser(i);
-		}
+		generateStar(rand() % 30);
+	}
+	if (x == 2)
+	{
+		generateMed(rand() % 30);
 	}
 }
+void generateStar(int x) // checkpoint
+{
+	star_y[star_count] = 0;
+	star_x[star_count] = x;
+	map[0][x] = '$';
+	star_count++;
+}
+void generateMed(int x)
+{
+	med_y[med_count] = 0;
+	med_x[med_count] = x;
+	map[0][x] = '+';
+	med_count++;
+}
+
+
+
+
+
 
 // Flags Functions
 bool laserHitAst(int laser_n)
@@ -458,6 +564,39 @@ int hitEnemyNum(int laser_n)
 }
 
 // Main Functions
+void progressLaser()
+{ // Movement of Laser(s)
+	for (int i = 0; i < laser_count; i++) // i'th laser
+	{
+		if (laserHitAst(i))
+		{
+			int astNum = hitAstNum(i);
+			map[laser_y[i]][laser_x[i]] = ' ';
+			map[ast_y[i]][ast_x[i]] = ' ';
+			map[ast_y[i]+1][ast_x[i]] = ' ';
+			neutralizeAsteroid(astNum);
+			generateExplosion(laser_x[i],laser_y[i]);
+			neutralizeLaser(i);
+		}
+		else if (laser_y[i] != 0) // if laser not hitting top boundary, move them upward
+		{
+			map[laser_y[i]][laser_x[i]] = ' ';
+			laser_y[i]--;
+			map[laser_y[i]][laser_x[i]] = '|';
+		}
+		else if (laser_y[i]==0) // If laser hit boundary, 
+		{
+			neutralizeLaser(i);
+		}
+		if (laserHitEnemy(i))
+		{
+			int enemyNum = hitEnemyNum(i);
+			neutralizeEnemy(enemyNum);
+			generateExplosion(laser_x[i], laser_y[i]);
+			neutralizeLaser(i);
+		}
+	}
+}
 void neutralizeLaser(int i)
 { // Remove a specific laser and perform related operations
 	laser_y[i] = 0;
@@ -502,7 +641,6 @@ void progressAsteroid()
 		}
 		if (AstHitShip(i))
 		{
-			debugMsg(1, FRAME);
 			neutralizeAsteroid(i);
 		}
 	}
@@ -589,7 +727,7 @@ void progressEnemy()
 	for (int i = 0; i < enemy_count; i++)
 	{
 		if (enemy_direction[i] == 2)
-			if ((enemy_x[i] - 1) != 0/* && enemy_direction[i]==2*/) // if Left Wing of Enemy is NOT at column = 0 / very left , then move ship left
+			if ((enemy_x[i] - 1) != 0) // if Left Wing of Enemy is NOT at column = 0 / very left , then move ship left
 			{
 				clearEnemyCurrentLocation(i);
 				enemy_x[i]--;
@@ -599,7 +737,7 @@ void progressEnemy()
 			}
 		if (enemy_direction[i] == 1)
 		{
-			if ((enemy_x[i] + 1) != LAST_X /*&& enemy_direction[i] == 2*/) // if Right Wing of Enemy is NOT at column = 29 / very right , then move ship right
+			if ((enemy_x[i] + 1) != LAST_X) // if Right Wing of Enemy is NOT at column = 29 / very right , then move ship right
 			{
 				clearEnemyCurrentLocation(i);
 				enemy_x[i]++;
@@ -608,6 +746,10 @@ void progressEnemy()
 					enemy_direction[i] = 2;
 			}
 
+		}
+		if (enemy_life[i] != 0) // updating enemy ship's lifetime
+		{
+			enemy_life[i]++;
 		}
 	}
 }
@@ -629,6 +771,7 @@ void neutralizeEnemy(int i)
 {
 	clearEnemyCurrentLocation(i);
 	enemy_y[i] = enemy_x[i] = 49;
+	enemy_life[i] = 0;
 	sortEnemy();
 	enemy_count--;
 }
@@ -640,14 +783,110 @@ void sortEnemy()
 		if (enemy_y[i] != 49) {
 			enemy_y[count] = enemy_y[i];
 			enemy_x[count] = enemy_x[i];
+			if (enemy_life[i] != 0)
+			{
+				enemy_life[count] = enemy_life[i]; // sorting enemy_life array
+			}
 			count++;
 		}
+		
 	}
 	for (int i = count; i < enemy_count; i++) {
 		enemy_y[i] = 0;
 		enemy_x[i] = 0;
+		enemy_life[i] = 0;
 	}
 }
+void progressStar()
+{
+	for (int i = 0; i < star_count; i++)
+	{
+		if (star_y[i] != 49)
+		{
+			map[star_y[i]][star_x[i]] = ' ';
+			star_y[i]++;
+			map[star_y[i]][star_x[i]] = '$';
+		}
+		else if (star_y[i] == 49)
+		{
+			neutralizaStar(i);
+		}
+	}
+}
+void neutralizaStar(int star_n)
+{
+	map[star_y[star_n]][star_x[star_n]] = ' ';
+	star_y[star_n] = 49;
+	sortStar();
+	star_count--;
+}
+void sortStar()
+{ // To sort the Array of Stars Coordinates
+	int count = 0;
+	for (int i = 0; i < star_count; i++) // Removing all indexes with value 49
+	{
+		if (star_y[i] != 49) {
+			star_y[count] = star_y[i];
+			star_x[count] = star_x[i];
+			count++;
+		}
+	}
+	for (int i = count; i < star_count; i++) {
+		star_y[i] = 0;
+		star_x[i] = 0;
+	}
+}
+void progressMed()
+{
+	for (int i = 0; i < med_count; i++)
+	{
+		if (med_y[i] != 49)
+		{
+			map[med_y[i]][med_x[i]] = ' ';
+			med_y[i]++;
+			map[med_y[i]][med_x[i]] = '+';
+		}
+		else if (med_y[i] == 49)
+		{
+			neutralizeMed(i);
+		}
+	}
+}
+void neutralizeMed(int med_n)
+{
+	map[med_y[med_n]][med_x[med_n]] = ' ';
+	med_y[med_n] = 49;
+	sortMed();
+	med_count--;
+}
+void sortMed()
+{
+	int count = 0;
+	for (int i = 0; i < med_count; i++) // Removing all indexes with value 49
+	{
+		if (med_y[i] != 49) {
+			med_y[count] = med_y[i];
+			med_x[count] = med_x[i];
+			count++;
+		}
+	}
+	for (int i = count; i < med_count; i++) {
+		med_y[i] = 0;
+		med_x[i] = 0;
+	}
+}
+
+// Progression of Objects
+void progressObjects() { // Progression for multiple objects
+	progressLaser();
+	progressAsteroid();
+}
+void progressCollectible()
+{
+	progressStar();
+	progressMed();
+}
+
 // General Game
 void gameOverFn() { // Prints Game Over on screen
 	cout << endl;
@@ -663,7 +902,28 @@ void gotoxy(int x, int y) // to get rid of System("CLS") and, get better renderi
 	coord.Y = y; // Row
 	SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), coord);
 }
-
+void hideCursor()
+{   // To hide the blinking cursor on the console, for better visibility
+	HANDLE consoleHandle = GetStdHandle(STD_OUTPUT_HANDLE);
+	CONSOLE_CURSOR_INFO cursorInfo;
+	GetConsoleCursorInfo(consoleHandle, &cursorInfo);
+	cursorInfo.bVisible = false; 
+	SetConsoleCursorInfo(consoleHandle, &cursorInfo);
+}
+void setConsoleSize(int width, int height)
+{   // To make sure that the console opens up in 720p dimensions, to refrain from any buggy display
+	HANDLE consoleHandle = GetStdHandle(STD_OUTPUT_HANDLE);
+	COORD bufferSize;
+	bufferSize.X = width;
+	bufferSize.Y = height;
+	SetConsoleScreenBufferSize(consoleHandle, bufferSize);
+	SMALL_RECT windowSize;
+	windowSize.Left = 0;
+	windowSize.Top = 0;
+	windowSize.Right = width - 1;
+	windowSize.Bottom = height - 1;
+	SetConsoleWindowInfo(consoleHandle, TRUE, &windowSize);
+}
 void debugMsg(int code, int i_frame)
 {
 	if (code == 1)
@@ -672,10 +932,9 @@ void debugMsg(int code, int i_frame)
 		cout << "Asteroid Hit : " << i_frame;
 	}
 }
-
-void printArr(int arr[],int size, int row)
+void printArr(int arr[],int size, int col, int row)
 {
-	gotoxy(0, row);
+	gotoxy(col, row);
 	for (int i = 0; i < size; i++)
 	{
 		cout << arr[i] << " ";
@@ -717,4 +976,4 @@ void printStr(string line, int i_frame, int row)
 }
 
 // Progress Note:  
-// Organize the Enemy related functions. Next: Generate Enemies on different Rows, and create logic for neutralization of enemy ships and sorting array
+// Work on Collectibles.
