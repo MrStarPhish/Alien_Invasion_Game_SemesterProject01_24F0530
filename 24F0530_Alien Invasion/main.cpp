@@ -1,14 +1,24 @@
 #include<iostream>
 #include<windows.h> // for Sleep() and gotoxy()
 #include<conio.h> // for _getch() and _kbhit()
+#include<string> // for storing name
 
 
 using namespace std;
 
 // ------------All Global Variables
 
+// General Game Stats
+int SCORE = 0;
+int HEALTH = 0;
+int DISTANCE = 0;
+string NAME;
 // for keeping track of game-frames
 unsigned long int FRAME = 0; 
+// Game UI
+int stage = 1; // 0 for Menu, 1 for Level-1, 2 for Level-2
+// Variable for Speed Factor
+int s = 1;
 // Map Related
 const int ROWS = 50;
 const int COLS = 30;
@@ -17,6 +27,8 @@ char map[ROWS][COLS] = {};
 // General Game Mechanics Flags
 bool DevNotes = 0;
 bool gameOver = 0;
+bool astHitShip = 0;
+bool shipCantMove = 0;
 // Ship Coords
 int ship_y = LAST_Y-1, ship_x = LAST_X/2;
 // Laser Count and Coords
@@ -75,13 +87,28 @@ void clearDevRow(int row);
 void printLaserStats();
 void printAsteroidStats();
 void printEnemyStats();
+void printEnemyLifetime();
 void printEnemyLaserStats();
 void printFrameCount();
+// GameBar Related
+void displayGameBarStats();
+void clearGameBarStats();
+void printScore();
+void printDistance();
+void printHealth();
+void printHealthBar();
+// Object Generation Related
+void generateObject(int i_frame);
 // Game Related
+void resetScore();
+void resetHealth();
+void resetDistance();
+void resetFrame();
 void cleanBoundary();
 void processShip(int x, int y);
 void initializeMap();
 void renderMap();
+void renderGameBar();
 void keyListen();
 void buttonPressed(char btn);
 void moveShipLeft();
@@ -104,6 +131,9 @@ int hitAstNum(int laser_n);
 bool laserHitEnemy(int laser_n);
 int hitEnemyNum(int laser_n);
 bool AstHitShip(int ast_n);
+bool EnemyLaserHitShip(int e_laser_n);
+bool starHitShip(int star_n);
+bool medHitShip(int med_n);
 // EXPLOSION RELATED
 void generateExplosion(int x, int y);
 void progressExplosion();
@@ -122,22 +152,30 @@ void progressEnemyLaser();
 void neutralizeEnemyLaser(int e_laser_num);
 void sortEnemyLaser();
 // COLLECTIBLES
-void generateCollectible(int x);
+void generateCollectible(int type);
 void progressCollectible();
+void collectibleCollected(int type);
 // ---STARS
 void generateStar(int x);
 void progressStar();
-void neutralizaStar(int star_n);
+void neutralizeStar(int star_n);
 void sortStar();
+void incScore(int amount);
 // ---MED KIT
 void generateMed(int x);
 void progressMed();
 void neutralizeMed(int med_n);
 void sortMed();
-
+void incHealth(int amount);
+void decHealth(int amount);
+// ---DISTANCE
+void incDistance(int amount);
+// SHIP MOVEMENT CHECK
+void shipMovementStatus(int callFrame);
 // PROGRESSION
 void progressObjects();
 void gameOverFn();
+void checkGameStatus();
 
 
 
@@ -150,31 +188,49 @@ int main()
 	hideCursor();
 	setConsoleSize(1280, 720);
 	initializeMap();
-
+	resetScore(); resetHealth(); resetDistance();
 
 
 	do { // -------------------------- GAME LOOP
-		// keeping track of game's progression
-		FRAME++;
-		// Ship and Render
 		
-		processShip(ship_x, ship_y);
-		renderMap();
-		// Print Below-Game stuff here
-		checkForDevNotesDisplay();
-		
-		
-		// General
-		progressAsteroid();
-		progressLaser();
-		progressExplosion();
-		progressEnemy();
-		progressEnemyLaser();
-		progressCollectible();
-		cleanBoundary(); // to remove any buggy display at top/bottom
+	FRAME++;   // keeping track of game's progression
 
-		keyListen();
-		Sleep(17); // Game Overall Speed
+		if (stage == 1) // Level 1
+		{
+			s = 1; // speed factor
+			// Ship and Render
+			processShip(ship_x, ship_y);
+			renderMap();
+			renderGameBar();
+			// Print stuff on SIde of the game
+			checkForDevNotesDisplay();
+			// Print stuff below the game
+			clearGameBarStats();
+			displayGameBarStats();
+			// Object Generation
+			generateObject(FRAME);
+			
+			// Slowed Down Progression , For Game Difficulty
+			if (FRAME % s == 0)
+			{
+				progressEnemy();
+				progressAsteroid();
+			}
+			// General
+			progressLaser();
+			progressExplosion();
+			progressEnemyLaser();
+			progressCollectible();
+			// Distance
+			incDistance(2);
+			if (DISTANCE!=0 && DISTANCE % 100 == 0)
+				incScore(20);  // every 100m distance gives +20 score
+
+			cleanBoundary(); // to remove any buggy display at top/bottom
+			keyListen();
+			checkGameStatus();
+			Sleep(17); // Game Overall Speed
+		}
 	} while (gameOver==0);
 
 	if (gameOver)
@@ -187,9 +243,68 @@ int main()
 }
 
 
+// Object Generation Related
+void generateObject(int i_frame)
+{
+	int z = i_frame;
+	int delay = 30; // Basic frame-difference/timing between generation of each type of object
+	static int asteroidTimer = 0;
+	static int enemyTimer = 0;
+	static int collectibleTimer1 = 0;
+	static int collectibleTimer2 = 0;
 
+	// Generating Objects
+	if (z % delay == 0 && asteroidTimer <= 0)
+	{
+		generateAsteroid();
+		asteroidTimer = delay;
+	}
+	if (z % (2*delay) == 0 && asteroidTimer <= 0)
+	{
+		int temp = rand()%(20-10+1)+10; // (max-min+1)+min , generating random number in range [min,max]
+		generateEnemy(temp);
+		enemyTimer = 2*delay;
+	}
+	if (z % (1*delay) == 0 && asteroidTimer <= 0)
+	{
+		generateCollectible(1); // Star
+		collectibleTimer1 = delay;
+	}
+	if (z % (3 * delay) == 0 && asteroidTimer <= 0)
+	{
+		generateCollectible(2); // Med Kit
+		collectibleTimer2 = 3*delay;
+	}
+
+	// Resetting Timers of Generated Objects
+	if (asteroidTimer > 0)
+		asteroidTimer--;
+	if (enemyTimer > 0)
+		enemyTimer--;
+	if (collectibleTimer1 > 0)
+		collectibleTimer1--;
+	if (collectibleTimer2 > 0)
+		collectibleTimer2--;
+
+}
 
 // Render Related
+void resetScore()
+{
+	SCORE = 0;
+}
+void resetHealth()
+{
+	HEALTH = 100;
+}
+void resetDistance()
+{
+	DISTANCE = 0;
+}
+void resetFrame()
+{
+	FRAME = 0;
+}
 void processShip(int x, int y)
 { // To store the location of ship
 	map[y][x-1] = '<';
@@ -232,6 +347,22 @@ void renderMap()
 		cout << "=";
 	}
 	gotoxy(0, 0);
+}
+void renderGameBar()
+{
+	gotoxy(0, 60);
+	for (int i = 0; i < 32; i++)
+	{
+		cout << "=";
+	}
+	for (int i = 52; i < 60; i++)
+	{
+		gotoxy(0,i);
+		cout << "|";
+		gotoxy(31,i);
+		cout << "|";
+	}
+	
 }
 void cleanBoundary()
 {	// To clean Top and Bottom boundary to refrain from any buggy still display
@@ -280,6 +411,7 @@ void printDevNotes()
 	printAsteroidStats();
 	printEnemyStats();
 	printEnemyLaserStats();
+	printEnemyLifetime();
 	printFrameCount();
 }
 void printLaserStats()
@@ -318,6 +450,12 @@ void printEnemyLaserStats()
 	gotoxy(125, 12);
 	cout << "E_LASER X:"; printArr(e_laser_x, e_laser_count, 135, 12);
 }
+void printEnemyLifetime()
+{
+	gotoxy(125, 13);
+	cout << "LIFETIME: ";
+	printArr(enemy_life, enemy_count, 135, 13);
+}
 void printFrameCount()
 {
 	gotoxy(125, 15);
@@ -338,7 +476,53 @@ void clearDevRow(int row)
 		cout << " ";
 	}
 }
-
+// GameBar Related
+void displayGameBarStats()
+{
+	printScore();
+	printDistance();
+	printHealth();
+}
+void clearGameBarStats()
+{
+	if (FRAME % 15 == 0) // updates every 15 frames
+	{
+		for (int i = 53; i < 60; i++)
+		{
+			gotoxy(1,i);
+			for (int j = 0; j < 30; j++)
+			{
+				cout << " ";
+			}
+		}
+	}
+}
+void printScore()
+{
+	gotoxy(2, 53);
+	cout << "SCORE: " <<"$ "<< SCORE;
+}
+void printDistance()
+{
+	gotoxy(2, 55);
+	cout << "DISTANCE: " << DISTANCE<<" m";
+}
+void printHealth()
+{
+	gotoxy(2, 57);
+	cout << "SHIP HEALTH: ";
+	printHealthBar();
+}
+void printHealthBar()
+{
+	cout << "[";
+	for (int i = 1; i <= (HEALTH / 10); i++)
+	{
+		cout << "/";
+	}
+	gotoxy(26,57);
+	cout << "]";
+}
 // Button Listener
 void keyListen()
 {
@@ -354,21 +538,28 @@ void buttonPressed(char btn)
 	{
 	case 'a': // Ship Left
 	case 'A':
+		if (!shipCantMove)
 		moveShipLeft();
 		break;
 
 	case 'd': // Ship Right 
 	case 'D':
+		if (!shipCantMove)
+
 		moveShipRight();
 		break;
 
 	case 'w': // Ship Up 
 	case 'W':
+		if (!shipCantMove)
+
 		moveShipUp();
 		break;
 
 	case 's': // Ship Down
 	case 'S':
+		if (!shipCantMove)
+
 		moveShipDown();
 		break;
 
@@ -400,7 +591,7 @@ void buttonPressed(char btn)
 
 }
 
-// Button Related Actions
+// Button Related or Generation Actions
 void moveShipLeft()
 {
 	if ((ship_x - 1) != 0)  // if Left Wing doesn't touch Boundary
@@ -460,7 +651,7 @@ void generateExplosion(int x, int y)
 	map[y][x] = 'O';
 	exp_count++;
 }
-void generateEnemy(int y)
+void generateEnemy(int y) // y-axis as parameter
 {
 	int x = 0;
 	if (FRAME % 2 == 0) // Randomizing the spawn and flow direction
@@ -484,13 +675,13 @@ void generateEnemy(int y)
 	enemy_count++;
 	enemy_life[enemy_count] = 1;
 }
-void generateCollectible(int x)
+void generateCollectible(int type) //
 {
-	if (x == 1)
+	if (type == 1)
 	{
 		generateStar(rand() % 30);
 	}
-	if (x == 2)
+	if (type == 2)
 	{
 		generateMed(rand() % 30);
 	}
@@ -511,8 +702,6 @@ void generateMed(int x)
 }
 
 
-
-
 // Flags Functions
 bool laserHitAst(int laser_n)
 { // To check whether Laser is Hitting any Asteroid or not
@@ -522,6 +711,7 @@ bool laserHitAst(int laser_n)
 		{
 			if ( (laser_y[laser_n] == ast_y[j]) || (laser_y[laser_n]-1 == ast_y[j]))
 			{
+				incScore(20);
 				return 1;
 			}
 		}
@@ -537,6 +727,7 @@ bool laserHitEnemy(int laser_n)
 		{
 			if ((laser_y[laser_n] == enemy_y[j]) || (laser_y[laser_n] - 1 == enemy_y[j]))
 			{
+				incScore(50);
 				return 1;
 			}
 		}
@@ -551,6 +742,50 @@ bool AstHitShip(int ast_n)
 	{
 		if ((ax==ship_x) || (ax==ship_x+1) || (ax==ship_x-1)) // if asteroid hits Ship or its wing
 		{
+			astHitShip = 1;
+			decHealth(20);
+			return 1;
+		}
+	}
+	astHitShip = 0;
+	return 0;
+}
+bool EnemyLaserHitShip(int e_laser_n)
+{
+	int ex = e_laser_x[e_laser_n];
+	int ey = e_laser_y[e_laser_n];
+	if (ey == ship_y)
+	{
+		if ((ex == ship_x) || (ex == ship_x + 1) || (ex == ship_x - 1)) // if enemy laser hits Ship or its wing
+		{
+			return 1;
+		}
+	}
+	return 0;
+}
+bool starHitShip(int star_n)
+{
+	int sx = star_x[star_n];
+	int sy = star_y[star_n];
+	if (sy == ship_y)
+	{
+		if ((sx == ship_x) || (sx == ship_x + 1) || (sx == ship_x - 1)) // if asteroid hits Ship or its wing
+		{
+			collectibleCollected(1);
+			return 1;
+		}
+	}
+	return 0;
+}
+bool medHitShip(int med_n)
+{
+	int mx = med_x[med_n];
+	int my = med_y[med_n];
+	if (my == ship_y)
+	{
+		if ((mx == ship_x) || (mx == ship_x + 1) || (mx == ship_x - 1)) // if asteroid hits Ship or its wing
+		{
+			collectibleCollected(2);
 			return 1;
 		}
 	}
@@ -564,7 +799,6 @@ int hitAstNum(int laser_n)
 		{
 			if ((laser_y[laser_n] == ast_y[j]) || (laser_y[laser_n] - 1 == ast_y[j]))
 			{
-				gotoxy(0, 58); cout << j;
 				return j;
 			}
 		}
@@ -772,9 +1006,8 @@ void progressEnemy()
 			}
 
 		}
-		if (enemy_life[i] != 0) // updating enemy ship's lifetime
 		{
-			enemy_life[i]++;
+			enemy_life[i]++;  // updating enemy's life time
 		}
 	}
 }
@@ -834,11 +1067,15 @@ void progressStar()
 		}
 		else if (star_y[i] == 49)
 		{
-			neutralizaStar(i);
+			neutralizeStar(i);
+		}
+		if (starHitShip(i))
+		{
+			neutralizeStar(i);
 		}
 	}
 }
-void neutralizaStar(int star_n)
+void neutralizeStar(int star_n)
 {
 	map[star_y[star_n]][star_x[star_n]] = ' ';
 	star_y[star_n] = 49;
@@ -875,6 +1112,10 @@ void progressMed()
 		{
 			neutralizeMed(i);
 		}
+		if (medHitShip(i))
+		{
+			neutralizeMed(i);
+		}
 	}
 }
 void neutralizeMed(int med_n)
@@ -900,13 +1141,46 @@ void sortMed()
 		med_x[i] = 0;
 	}
 }
-
+void collectibleCollected(int type)
+{
+	if (type == 1) // Star Collected
+	{
+		incScore(20);
+	}
+	if (type == 2) // Med Kit collected
+	{
+		incHealth(25);
+	}
+}
+void incScore(int amount)
+{
+	SCORE += amount;
+}
+void incHealth(int amount)
+{
+	if (HEALTH != 100)
+	{
+		if (HEALTH + amount >= 100)
+			HEALTH = 100;
+		else
+			HEALTH += amount;
+	}
+}
+void decHealth(int amount)
+{
+	HEALTH -= amount;
+}
+void incDistance(int amount)
+{
+	DISTANCE += amount;
+}
 // Enemey Laser Related
 void generateEnemyLaser()
 {
 	for (int i = 0; i < enemy_count; i++)
 	{
-		shootEnemyLaser(i);
+		if (enemy_life[i] % 25 == 0) // Laser Generation Delay
+			shootEnemyLaser(i);
 	}
 }
 void shootEnemyLaser(int enemy_num)
@@ -932,10 +1206,10 @@ void progressEnemyLaser()
 		{
 			neutralizeEnemyLaser(i);
 		}
-		/*if (AstHitShip(i))
+		if (EnemyLaserHitShip(i))
 		{
-			neutralizeAsteroid(i);
-		}*/
+			neutralizeEnemyLaser(i);
+		}
 	}
 }
 void neutralizeEnemyLaser(int e_laser_num)
@@ -943,6 +1217,7 @@ void neutralizeEnemyLaser(int e_laser_num)
 	int z = e_laser_num;
 	map[e_laser_y[z]][e_laser_x[z]] = ' ';
 	e_laser_y[z] = 49;
+	e_laser_x[z] = 49;
 	sortEnemyLaser();
 	e_laser_count--;
 }
@@ -980,6 +1255,11 @@ void progressCollectible()
 void gameOverFn() { // Prints Game Over on screen
 	cout << endl;
 	cout << "Game Over" << endl;
+}
+void checkGameStatus()
+{
+	if (HEALTH <= 0)
+		gameOver = 1;
 }
 
 
@@ -1066,3 +1346,18 @@ void printStr(string line, int i_frame, int row)
 
 // Progress Note:  
 // Work on Collectibles.
+
+void shipMovementStatus(int callFrame)
+{	// Ship cannot move for 20 frames if it got hit with Asteroid (calling in Asteroid function)
+	static int activationFrame = -1;  // storing the frame at which this function is activated
+	if (shipCantMove == 0)
+	{
+		activationFrame = callFrame;
+		shipCantMove = 1;
+	}
+	else if (FRAME >= activationFrame + 20) // restore after 20 frames
+	{
+		shipCantMove = 0;
+		activationFrame = -1;
+	}
+}
