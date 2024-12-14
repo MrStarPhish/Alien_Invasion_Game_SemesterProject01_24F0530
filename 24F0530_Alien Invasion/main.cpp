@@ -16,7 +16,7 @@ string NAME;
 // for keeping track of game-frames
 unsigned long int FRAME = 0; 
 // Game UI
-int stage = 1; // 0 for Menu, 1 for Level-1, 2 for Level-2
+int stage = 0; // 0 for Menu, 1 for Level-1, 2 for Level-2
 // Variable for Speed Factor
 int s = 1;
 // Map Related
@@ -29,6 +29,12 @@ bool DevNotes = 0;
 bool gameOver = 0;
 bool astHitShip = 0;
 bool shipCantMove = 0;
+// Menu Related 
+int menuPointerLocation = 0;// for storing y-component of Pointer
+int& pointer_y = menuPointerLocation;
+int pointer_x = 8;
+// Name Input / File Handling related
+string name;
 // Ship Coords
 int ship_y = LAST_Y-1, ship_x = LAST_X/2;
 // Laser Count and Coords
@@ -73,6 +79,7 @@ char key = 0;
 // Coding related
 void gotoxy(int x, int y);
 void hideCursor();
+void setColor(int textColor);
 void setConsoleSize(int width, int height);
 void debugMsg(int code, int frame);
 void printArr(int arr[], int size, int col, int row);
@@ -90,6 +97,24 @@ void printEnemyStats();
 void printEnemyLifetime();
 void printEnemyLaserStats();
 void printFrameCount();
+// Startup Menu Related
+void displayStartupMenu();
+void printStartupHeader();
+void printStartupWatermark();
+void printMenu();
+void printMenuInstructions();
+
+void defaultMenuPointer();
+void clearPointer();
+void printMenuPointer();
+void menuKeyListen(char btn);
+void menuPointerUp();
+void menuPointerDown();
+void menuPointerSelect();
+// Name Input / File Handling related
+void inputName();
+void inputCheck();
+void saveStats();
 // GameBar Related
 void displayGameBarStats();
 void clearGameBarStats();
@@ -115,6 +140,7 @@ void moveShipLeft();
 void moveShipRight();
 void moveShipUp();
 void moveShipDown();
+void forceGameOver();
 // LASER
 void shootLaser();
 void progressLaser();
@@ -184,20 +210,29 @@ void checkGameStatus();
 
 
 int main()
-{	// ALL THE INITIALS HERE aka One Timers
+{	// ALL THE INITIALS HERE , aka One Timers
 	hideCursor();
 	setConsoleSize(1280, 720);
 	initializeMap();
 	resetScore(); resetHealth(); resetDistance();
-
+	defaultMenuPointer(); // setting pointer to default location at the beginning
 
 	do { // -------------------------- GAME LOOP
 		
-	FRAME++;   // keeping track of game's progression
-
+	   // keeping track of game's progression
+	
+		if (stage == 0) // Menu
+		{
+			char menuKey;
+			displayStartupMenu();
+			menuKey = _getch();
+			menuKeyListen(menuKey);
+		}
 		if (stage == 1) // Level 1
 		{
 			s = 1; // speed factor
+			FRAME++; // tracking Frame
+
 			// Ship and Render
 			processShip(ship_x, ship_y);
 			renderMap();
@@ -209,6 +244,7 @@ int main()
 			displayGameBarStats();
 			// Object Generation
 			generateObject(FRAME);
+			generateEnemyLaser();
 			
 			// Slowed Down Progression , For Game Difficulty
 			if (FRAME % s == 0)
@@ -229,13 +265,13 @@ int main()
 			cleanBoundary(); // to remove any buggy display at top/bottom
 			keyListen();
 			checkGameStatus();
-			Sleep(17); // Game Overall Speed
+			Sleep(100); // Game Overall Speed
 		}
 	} while (gameOver==0);
 
 	if (gameOver)
 	{
-		gameOverFn();
+		saveStats();
 	}
 
 	system("pause");
@@ -243,34 +279,175 @@ int main()
 }
 
 
+
+// Startup Menu Related
+void displayStartupMenu()
+{
+	renderMap();
+	clearPointer();
+	printMenuPointer();
+	printStartupHeader();
+	printStartupWatermark();
+	printMenu();
+	printMenuInstructions();
+}
+void printStartupHeader()
+{
+	gotoxy(8, 15);
+	setColor(3);
+	cout << "SEMESTER PROJECT";
+	gotoxy(11, 16);
+	cout << "#F24-0530";
+	gotoxy(8, 17);
+	cout << "\"Alien Invasion\"";
+}
+void printStartupWatermark()
+{
+	gotoxy(6, 25);
+	setColor(13);
+	cout << "PHISHY'S SPACE COWBOY";
+}
+void printMenu()
+{
+	setColor(7); // making sure it is default color
+	gotoxy(10,30);
+	cout << "START GAME";
+	gotoxy(10, 31);
+	cout << "INSTRUCTIONS";
+	gotoxy(10, 32);
+	cout << "HIGH SCORES";
+	gotoxy(10, 33);
+	cout << "EXIT";
+}
+void printMenuInstructions()
+{
+	gotoxy(8,40);
+	cout << "W,A,S,D to move";
+	gotoxy(8,41);
+	cout << "F to select";
+}
+
+void defaultMenuPointer()
+{   // To set pointer location to default location -> Start Game
+	menuPointerLocation = 30;
+}
+void printMenuPointer()
+{
+	gotoxy(pointer_x, pointer_y);
+	setColor(12);
+	cout << ">";
+}
+void menuKeyListen(char btn)
+{
+	char z = tolower(btn);
+	switch (btn)
+	{
+	case 's':
+		menuPointerDown();
+		break;
+	case 'w':
+		menuPointerUp();
+		break;
+	case 'f':
+		menuPointerSelect();
+		break;
+	}
+}
+void menuPointerUp()
+{
+	if (pointer_y - 1 != 29) // movement check
+		pointer_y--;
+}
+void menuPointerDown()
+{
+	if (pointer_y + 1 != 34) // movement check
+		pointer_y++;
+}
+void menuPointerSelect()
+{
+	switch (pointer_y)
+	{
+	case 30:
+		system("CLS");
+		inputName();
+		resetFrame();
+		stage = 1;
+		break;
+	case 31:
+		
+		break;
+	case 32:
+		break;
+	case 33:
+		break;
+	}
+}
+void clearPointer()
+{
+	gotoxy(pointer_x, pointer_y);
+	cout << " ";
+}
+
+// Name Input / File Handling related
+void inputName()
+{
+	initializeMap();
+	renderMap(); // clearing screen
+
+	setColor(6);
+	gotoxy(5, 20);
+	cout << "Input Name";
+	gotoxy(5, 21);
+	cout << "(5 Characters)";
+	gotoxy(5, 25);
+	setColor(13);
+	cout << "Name:  ";
+	setColor(12);
+	getline(cin, name);
+	inputCheck();
+}
+void inputCheck()
+{   // if input is greater than 5 characters, shrink it.
+	if (name.length() > 5)
+	{
+		name = name.substr(0, 5);
+	}
+}
+void saveStats()
+{
+
+}
 // Object Generation Related
 void generateObject(int i_frame)
 {
 	int z = i_frame;
-	int delay = 30; // Basic frame-difference/timing between generation of each type of object
+	int delay = 15; // Basic frame-difference/timing between generation of each type of object
 	static int asteroidTimer = 0;
 	static int enemyTimer = 0;
 	static int collectibleTimer1 = 0;
 	static int collectibleTimer2 = 0;
 
 	// Generating Objects
-	if (z % delay == 0 && asteroidTimer <= 0)
+	if ((z % delay == 0 && asteroidTimer <= 0) || z==10)
 	{
 		generateAsteroid();
 		asteroidTimer = delay;
 	}
-	if (z % (2*delay) == 0 && asteroidTimer <= 0)
+	if (z % (2*delay) == 0 && enemyTimer <= 0)
 	{
-		int temp = rand()%(20-10+1)+10; // (max-min+1)+min , generating random number in range [min,max]
-		generateEnemy(temp);
-		enemyTimer = 2*delay;
+		if (enemy_count <= 5)
+		{
+			int temp = rand() % (35 - 5 + 1) + 5; // (max-min+1)+min , generating random number in range [min,max]
+			generateEnemy(temp);
+			enemyTimer = 2 * delay;
+		}
 	}
-	if (z % (1*delay) == 0 && asteroidTimer <= 0)
+	if (z % (3*delay) == 0 && collectibleTimer1 <= 0)
 	{
 		generateCollectible(1); // Star
 		collectibleTimer1 = delay;
 	}
-	if (z % (3 * delay) == 0 && asteroidTimer <= 0)
+	if (z % (4 * delay) == 0 && collectibleTimer2 <= 0)
 	{
 		generateCollectible(2); // Med Kit
 		collectibleTimer2 = 3*delay;
@@ -321,33 +498,34 @@ void initializeMap() {
 		}
 	}
 }
-void renderMap() 
+void renderMap_OLD() 
 { // To print everything
-	gotoxy(0, 0);
-	for (int i = 0; i < COLS + 2; i++) // Top Boundary
-	{
-		cout << "=";
-	}
-	cout << endl;
-
-	for (int i = 0; i < ROWS; i++) // Inner Game
-	{
-		gotoxy(0,i+1);
-		cout << "|";
-		for (int j = 0; j < COLS; j++)
-		{
-			cout << map[i][j];
-			
-		}
-		cout << "|";
-	}
-	gotoxy(0, 51);
-	for (int i = 0; i < COLS + 2; i++) // Top Boundary
-	{
-		cout << "=";
-	}
-	gotoxy(0, 0);
-}
+//	gotoxy(0, 0);
+//	for (int i = 0; i < COLS + 2; i++) // Top Boundary
+//	{
+//		cout << "=";
+//	}
+//	cout << endl;
+//
+//	for (int i = 0; i < ROWS; i++) // Inner Game
+//	{
+//		gotoxy(0,i+1);
+//		cout << "|";
+//		for (int j = 0; j < COLS; j++)
+//		{
+//			cout << map[i][j];
+//			
+//		}
+//		cout << "|";
+//	}
+//	gotoxy(0, 51);
+//	for (int i = 0; i < COLS + 2; i++) // Top Boundary
+//	{
+//		cout << "=";
+//	}
+//	gotoxy(0, 0);
+} 
+// ^ Traditional Rendering with gotoxy() implementation
 void renderGameBar()
 {
 	gotoxy(0, 60);
@@ -585,6 +763,9 @@ void buttonPressed(char btn)
 	case '9':
 		generateEnemyLaser();
 		break;
+	case '=':
+		forceGameOver();
+		break;
 	}
 	
 
@@ -699,6 +880,10 @@ void generateMed(int x)
 	med_x[med_count] = x;
 	map[0][x] = '+';
 	med_count++;
+}
+void forceGameOver()
+{
+	gameOver = 1;
 }
 
 
@@ -1264,12 +1449,40 @@ void checkGameStatus()
 
 
 // Coding and Debugging Related
+void renderMap()
+{
+	setColor(7); // default color
+	std::string buffer; // Initializing the buffer
+	// Loading Top Boundary here
+	buffer.append(COLS + 2, '=');
+	buffer.append("\n");
+	// Loading inner array
+	for (int i = 0; i < ROWS; i++) {
+		buffer.append("|");
+		for (int j = 0; j < COLS; j++) {
+			buffer.push_back(map[i][j]);
+		}
+		buffer.append("|\n");
+	}
+	// loading bottom boundary here
+	buffer.append(COLS + 2, '=');
+	buffer.append("\n");
+
+	// Printing every now
+	gotoxy(0, 0);
+	std::cout << buffer;
+}   // using Buffer Method
+ // ^ Rendering with Buffer Method
 void gotoxy(int x, int y) // to get rid of System("CLS") and, get better rendering
 {
 	COORD coord;
 	coord.X = x; // Column
 	coord.Y = y; // Row
 	SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), coord);
+}
+void setColor(int textColor)
+{   // To change the color of the text to be printed ahead
+	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), (0) | textColor);
 }
 void hideCursor()
 {   // To hide the blinking cursor on the console, for better visibility
@@ -1361,3 +1574,4 @@ void shipMovementStatus(int callFrame)
 		activationFrame = -1;
 	}
 }
+// ^ Cooking something, but not working
