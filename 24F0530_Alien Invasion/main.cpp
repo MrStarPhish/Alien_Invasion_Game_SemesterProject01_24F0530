@@ -1,9 +1,10 @@
 // F24-0530 - Semester Project ...
 #include<iostream>
+#include<iomanip> // only for setw() on High Scores Screen
 #include<windows.h> // for Sleep() and gotoxy()
 #include<conio.h> // for _getch() and _kbhit()
 #include<string> // for storing name
-#include<fstream>
+#include<fstream> // for file handling
 
 
 using namespace std;
@@ -239,7 +240,8 @@ void gameExitFn();
 
 
 int main()
-{	do{ // -- Program Loop
+{	
+	do{ // -- Program Loop
 		// ALL THE INITIALS HERE , aka One Timers
 		hideCursor();
 		setConsoleSize(1280, 720);
@@ -251,7 +253,7 @@ int main()
 
 			// keeping track of game's progression
 
-			if (stage == 0 && (!gameExit)) // Menu
+			if (stage == 0 && (!gameExit)) // MENU SCREEN
 			{
 				char menuKey;
 				displayStartupMenu();
@@ -268,7 +270,7 @@ int main()
 				_getch();
 				stage = 0;
 			}
-			if (stage == 4)
+			if (stage == 4) // INSTRUCTIONS SCREEN
 			{
 				initializeMap();
 				renderMap();
@@ -326,6 +328,7 @@ int main()
 			readStats();
 			addStatsEntry();
 			sortStats();
+			rewriteStats();
 			gameOverFn();
 
 			gameOver = 0;
@@ -482,6 +485,7 @@ void countEntries()
 {	// for counting no.of entries in the scores file
 	ifstream read;
 	string temp;
+	scoreEntries = 0;
 	read.open(scoreFileName, ios::in);
 	if (read.is_open()) // if file is opened
 	{
@@ -496,6 +500,7 @@ void readStats()
 {	
 	ifstream read;
 	string temp;
+	scoreEntries = 0;
 	read.open(scoreFileName, ios::in);
 	if (read.is_open()) // if file is opened
 	{
@@ -610,6 +615,7 @@ void rewriteStats()
 	{
 		write << names[i] << "," << scores[i] << endl;
 	}
+	write.close();
 }
 // HIGH SCORES related
 void displayHighScores()
@@ -623,16 +629,16 @@ void displayHighScores()
 	else
 		limit = scoreEntries;
 
-	gotoxy(7, 10);
+	gotoxy(4, 10);
 	setColor(6);
-	cout << "High Scores";
+	cout << "Top 10 High Scores";
 
 	
 	setColor(7);
 	gotoxy(7,12);
-	cout << "NAME : SCORE";
+	cout << left << setw(5) << "NAME" << " : SCORE";
 	gotoxy(7, 13);
-	cout << "============";
+	cout << "=============";
 	for (int i = 0; i < limit; i++)
 	{	
 		gotoxy(7,15+i);
@@ -967,7 +973,7 @@ void printScoreboard()
 }
 void printName(int num) // num'th name
 {
-	cout << names[num];
+	cout <<left<< setw(5) << names[num];
 }
 void printScore(int num) // num'th score
 {
@@ -1080,6 +1086,7 @@ void buttonPressed(char btn)
 
 	case 'b': // Shoot Laser
 	case 'B':
+	case ' ':
 		shootLaser();
 		break;
 	case 'p':
