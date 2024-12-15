@@ -1,7 +1,7 @@
 // F24-0530 - Semester Project ...
 #include<iostream>
 #include<iomanip> // only for setw() on High Scores Screen
-#include<windows.h> // for Sleep() and gotoxy()
+#include<windows.h> // for Sleep() and gotoxy() and Beep()
 #include<conio.h> // for _getch() and _kbhit()
 #include<string> // for storing name
 #include<fstream> // for file handling
@@ -92,6 +92,7 @@ void gotoxy(int x, int y);
 void hideCursor();
 void setColor(int textColor);
 void setConsoleSize(int width, int height);
+void playBackgroundMusic(const wchar_t* musicFileName);
 void debugMsg(int code, int frame);
 void printArr(int arr[], int size, int col, int row);
 void printStr(string line, int i_frame, int row);
@@ -232,8 +233,9 @@ void printGameOver();
 void checkGameStatus();
 // Exit
 void gameExitFn();
-
-
+// Sound Related
+void menuSFX();
+void stopBGM();
 
 
 
@@ -248,7 +250,6 @@ int main()
 		initializeMap();
 		resetScore(); resetHealth(); resetDistance();
 		defaultMenuPointer(); // setting pointer to default location at the beginning
-
 		do { // -------------------------- GAME LOOP
 
 			// keeping track of game's progression
@@ -259,6 +260,7 @@ int main()
 				displayStartupMenu();
 				menuKey = _getch();
 				menuKeyListen(menuKey);
+
 			}
 			if (stage == 3) // HIGH SCORES SCREEN
 			{
@@ -268,6 +270,7 @@ int main()
 			
 				cout << "Press Any Key To Go Back.";
 				_getch();
+				menuSFX();
 				stage = 0;
 			}
 			if (stage == 4) // INSTRUCTIONS SCREEN
@@ -282,6 +285,7 @@ int main()
 				setColor(7);
 
 				_getch();
+				menuSFX();
 				stage = 0;
 			}
 			if (stage == 1) // Level 1
@@ -333,6 +337,7 @@ int main()
 
 			gameOver = 0;
 			stage = 0;
+			stopBGM();
 			resetFrame();
 			_getch();
 		}
@@ -422,15 +427,22 @@ void menuKeyListen(char btn)
 void menuPointerUp()
 {
 	if (pointer_y - 1 != 29) // movement check
+	{
 		pointer_y--;
+		menuSFX();
+	}
 }
 void menuPointerDown()
 {
 	if (pointer_y + 1 != 34) // movement check
+	{
 		pointer_y++;
+		menuSFX();
+	}
 }
 void menuPointerSelect()
-{
+{	
+	menuSFX();
 	switch (pointer_y)
 	{
 	case 30:
@@ -472,6 +484,8 @@ void inputName()
 	cout << "Name:  ";
 	setColor(12);
 	getline(cin, name);
+	menuSFX();
+	playBackgroundMusic(L"bgm.wav");
 	inputCheck();
 }
 void inputCheck()
@@ -1822,6 +1836,16 @@ void gameExitFn()
 {
 	gameExit = 1;
 }
+// Sound Related
+void menuSFX() 
+{	// generating simple sound for Menu Interaction
+	Beep(800,150);
+}
+void stopBGM()
+{
+	PlaySound(NULL,0,0);
+}
+
 
 
 // Coding and Debugging Related
@@ -1881,6 +1905,10 @@ void setConsoleSize(int width, int height)
 	windowSize.Right = width - 1;
 	windowSize.Bottom = height - 1;
 	SetConsoleWindowInfo(consoleHandle, TRUE, &windowSize);
+}
+void playBackgroundMusic(const wchar_t* musicFileName)
+{
+	PlaySound(musicFileName, NULL, SND_FILENAME | SND_ASYNC | SND_LOOP); // Play the sound file in a loop and asynchronously
 }
 void debugMsg(int code, int i_frame)
 {
